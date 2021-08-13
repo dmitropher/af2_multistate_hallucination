@@ -2,7 +2,7 @@
 
 ## Script for performing 2-state design using AlphaFold2 MCMC hallucination.
 ## Basile Wicky <basile.wicky@gmail.com>
-## 2021-08-11
+## 2021-08-12
 
 ## SUMMARY:
 ## - MCMC trajectories can either be seeded with an input sequence, or started randomly.
@@ -11,13 +11,13 @@
 ## - The oligomeric state (number of subunits) for each oligomer (state) can be specified. 
 ## - Specific amino acids can be exluded.
 ## - MCMC paramters (initial temperature, annealing half-life, steps) can be specified.
-## - The loss function can either be plDDT, pTM, or dual. Dual is currently recommended because
+## - The loss function can either be plDDT, pTM, entropy, or dual. Dual is currently recommended because
 ##   plDDT has trouble converging to complex formation, and pTM tends to 'melt' input structures.
+##   Entropy is unlikely to work well at the moment because of its definition.
 
 ## MINIMLAL INPUTS:
 ## - The length of each protomer.
 ## - The number of subunits in each oligomeric state.
-## - A name for the simulation.
 
 ## OUTPUTS:
 ## - PDB structure for each accepted move of the MCMC trajectory.
@@ -25,10 +25,11 @@
 
 ## TODO:
 ## - A PAE-based loss looking at each off-diagonal matrix to enforce symmetry?
-## - A CCE-based loss to enable constrained hallucination based on an input structure? Or RMSD-based?
-## - An entropy loss?
+## - A CCE-based loss to enable constrained hallucination based on an input structure? 
+##   Or RMSD-based to a motif/structure?
 ## - Choice of negative/positive design? Currently only does positive 2-state design.
 ## - Check AA frequencies.
+## - How to normalise the PAE loss, or find good temperature if using that loss since it scales outside of 0-1?
 
 
 #######################################
@@ -53,6 +54,7 @@ from alphafold.model import data
 from alphafold.model import config
 from alphafold.model import model
 from jax.lib import xla_bridge
+from jax.nn import softmax
 print(xla_bridge.get_backend().platform)
 
 
@@ -161,7 +163,7 @@ parser.add_argument(
         )
 parser.add_argument(
         '--loss',
-        help='the loss function used during optimization. Choice of {plddt, ptm, pae, dual}. Default is dual.',
+        help='the loss function used during optimization. Choice of {plddt, ptm, pae, entropy, dual, pae_sub_mat}. Default is dual.',
         default='dual',
         type=str
         )
@@ -219,6 +221,7 @@ else:
     print('NOTE: Hallucination will produce two sequences, one existing in both a homo-oligomeric and hetero-oligomeric state, and the second one existing as a hetero-oligomer.')
     sim_type = 'hetero-sym'
 
+# Start.
 print(f'Predictions will be performed with model_{args.model}_ptm, with recyling set to {args.recycle}, and {args.msa_clusters} MSA cluster(s)')
 print(f'The choice of position to mutate at each step will be based on {args.update}')
 print(f'The loss function was set to {args.loss}')
@@ -287,7 +290,6 @@ else:
     else:
         init_proto2 = None
 
-    init_proto2 = ''.join(np.random.choice(list(AA_freq.keys()), size=args.L2, p=adj_freq))
 
 Ls = {}
 if sim_type == 'quasi-sym':
@@ -318,7 +320,7 @@ print(f'Simulated annealing will be performed over {steps} steps with a starting
 
 Mi, Mf = args.mutations.split('-')
 M = np.linspace(int(Mi), int(Mf), steps)
-print(f'The mutation rate at each step will go from {Mi} to {Mf} over {steps} steps')
+print(f'The mutation rate at each step will go from {Mi} to {Mf} over {steps} steps (linear stepped decay)')
 
 
 ##########################
@@ -458,19 +460,18 @@ current_pae = {}
 old_pae = {}
 try_pae = {}
 
-#current_dist = {}
-#old_dist = {}
-#try_dist = {}
+current_dist = {}
+old_dist = {}
+try_dist = {}
 
-for j, oligo in enumerate(oligomers):
+for oligo in oligomers:
     current_unrelaxed_protein[oligo] = None
     current_plddts[oligo] = np.random.normal(loc=30, scale=5, size=len(current_sequence[oligo]))
     current_ptms[oligo] = 0.0
     current_pae[oligo] = np.random.normal(loc=0.5, scale=0.1, size=(len(current_sequence[oligo]), len(current_sequence[oligo])))
-#    current_dist[oligo] =  np.random.normal(loc=0.5, scale=0.1, size=())
+    current_dist[oligo] =  np.random.normal(loc=3, scale=0.5, size=(len(current_sequence[oligo]), len(current_sequence[oligo]), 64)) # distogram is 3D
 
-
-current_loss = 1.0 
+current_loss = 100
 
 for i in range(steps):
 
@@ -501,19 +502,48 @@ for i in range(steps):
 
     for j, proto in enumerate(try_proto):
         
-        if args.update == 'random':
+        if args.update == 'random': # works
             mutable_pos = np.random.choice(range(len(proto)), size=n_mutations, replace=False)
             
-        elif args.update == 'plddt':
-            mutable_pos = np.argpartition(old_plddts[oligomers[j]][len(proto)], n_mutations)[:n_mutations]
+        elif args.update == 'plddt': # not sure it works
+            print(f'{args.update} update implementation is doubtful at present. System exiting...')
+            sys.exit()
+            '''
+            if j == 0:
+                reshaped_plddts = old_plddts[oligomers[j]].reshape((len(Ls[oligomers[j]]), -1)) # make plddts array of shape (n_oligo, seq_L)
 
-        elif '.res' in args.update:
+            elif j == 1:
+            
+                if sim_type == 'quasi-sym':
+                    reshaped_plddts = old_plddts[oligomers[j]].reshape((len(Ls[oligomers[j]]), -1)) # make plddts array of shape (n_oligo, seq_L)
+
+                elif sim_type == 'hetero-sym':
+                    reshaped_plddts = old_plddts[oligomers[j]][Ls[oligomers[j]][0]:]
+            
+            sites = np.argpartition(reshaped_plddts, n_mutations)[:n_mutations]
+            adj_sites = []
+
+            for ch, seq_L in enumerate(Ls[oligomers[j]]):
+                corr_sites = sites - (ch * seq_L)
+                adj_sites.append(np.where(np.logical_and(corr_sites >= 0, corr_sites < seq_L), corr_sites, np.zeros(len(sites))))
+
+            mutable_pos = np.sum(adj_sites, axis=0, dtype=int)
+
+            print(oligomers[j])
+            print(reshaped_plddts)
+            print(mutable_pos)
+            ''' 
+        elif '.res' in args.update: # not implemented yet
+            print(f'{args.update} update implementation not done yet. System exiting...')
+            sys.exit()
+            '''
             mutable_pos = np.array(open(args.update, 'r').readlines()[(j * 2) + 1].split(), dtype=int)
+            '''
 
         for p in mutable_pos:
             proto = proto[:p] + np.random.choice(list(AA_freq.keys()), p=adj_freq) + proto[p+1:]
 
-        try_proto[j] = proto
+        try_proto[j] = str(proto)
 
 
     if sim_type == 'quasi-sym':
@@ -538,26 +568,74 @@ for i in range(steps):
         try_plddts[oligo] = try_prediction_results[oligo]['plddt']
         try_ptms[oligo] = try_prediction_results[oligo]['ptm']
         try_pae[oligo] = try_prediction_results[oligo]['predicted_aligned_error']
-        pickle.dump(try_prediction_results[oligo], open(f'{prefix}_{oligo}.pickle', 'wb'))
-
-
-#        try_dist[oligo] = try_prediction_results[oligo]['distogram/logits']
-
+        try_dist[oligo] = softmax(try_prediction_results[oligo]['distogram']['logits'], -1) # convert logit to probs
+        # ^Distogram from AF2 represents pairwise Cb-Cb distances, and is outputted as logits.
 
     # Compute the loss.
     if args.loss == 'plddt':
+        # NOTE:
+        # Using this loss will optimise plddt (predicted lDDT) for the sequence(s).
+        # Early benchmarks suggest that this is not appropriate for forcing the emergence of complexes.
+        # Optimised sequences tend to be folded (or have good secondary structures) without forming inter-chain contacts.
         try_loss = 1 - (np.mean([np.mean(try_plddts[oligo]) for oligo in oligomers]) / 100)
 
     elif args.loss == 'ptm':
+        # NOTE:
+        # Using this loss will optimise ptm (predicted TM-score) for the sequence(s).
+        # Early benchmarks suggest that while it does force the apparition of inter-chain contacts,
+        # it usually is at the expense of intra-chain contacts. Resulting structures tend to look more like entangled spagettis. 
         try_loss = 1 - np.mean([try_ptms[oligo] for oligo in oligomers])
 
     elif args.loss == 'pae':
-        try_loss = np.mean([np.mean(try_pae[oligo]) /  try_sequence[oligo]**2 for oligo in oligomers])
+        # NOTE:
+        # Using this loss will optimise the mean of the pae matrix (predicted alignment error). 
+        # This loss has not been properly benchmarked, but some early results suggest that it might suffer from the same problem as ptm.
+        # During optimisation, off-digonal contacts (inter-chain) may get optimsed at the expense of the diagonal elements (intra-chain).
+        try_loss = np.mean([np.mean(try_pae[oligo]) for oligo in oligomers])
+
+    elif args.loss == 'entropy': 
+        # CAUTION:
+        # This loss is unlikely to yield anything useful at present.
+        # i,j pairs that are far away from each other, or for which AF2 is unsure, have max prob in the last bin of their respective distograms.
+        # This will generate an artifically low entropy for these positions.
+        # Need to find a work around this issue before using this loss.
+        print('Entropy is currently improperly implemented. System exiting...')
+        sys.exit()
+
+        entropies = [-np.sum((np.array(probs) * np.log(np.array(probs))), axis=-1) for probs in list(try_dist.values())]
+        try_loss = np.mean([np.mean(entropy) for entropy in entropies])
 
     elif args.loss == 'dual':
+        # NOTE:
+        # This loss jointly optimises ptm and plddt (equal weights).
+        # It attemps to combine the best of both worlds -- getting folded structures that are in contact.
+        # This loss is currently recommended.
         try_loss = 1 - (np.mean([try_ptms[oligo] for oligo in oligomers]) / 2) - (np.mean([np.mean(try_plddts[oligo]) for oligo in oligomers]) / 200)
 
-    delta = try_loss - old_loss
+
+    elif args.loss == 'pae_sub_mat':
+        # NOTE:
+        # This loss optimises the mean of the pae sub-matrices means.
+        # The idea is that all intra- and inter-chain predictions should converge at the same 'rate'.
+        # Untested, but hopefully will improve the hallucination of symmetric Cn where n > 3.
+        sub_mat = []
+        for oligo in oligomers:
+            prev1, prev2 = 0, 0
+            
+            for L1 in Ls[oligo]:
+                Lcorr1 = prev1 + L1
+
+                for L2 in Ls[oligo]:
+                    Lcorr2 = prev2 + L2
+                    sub_mat.append(try_pae[oligo][prev1:Lcorr1, prev2:Lcorr2])
+                    prev2 = Lcorr2
+
+                prev2 = 0
+                prev1 = Lcorr1
+
+        try_loss = np.mean([np.mean(sub_m) for sub_m in sub_mat])
+
+    delta = try_loss - old_loss # all losses defined such optimising requires minimising.
 
     # If the new solution is better, accept it.
     if delta < 0:
@@ -571,6 +649,7 @@ for i in range(steps):
             current_unrelaxed_protein[oligo] = copy.deepcopy(try_unrelaxed_protein[oligo])
             current_plddts[oligo] = try_plddts[oligo].copy()
             current_ptms[oligo] = float(try_ptms[oligo])
+            current_pae[oligo] = try_pae[oligo].copy()
             current_loss = float(try_loss)
 
     # If the new solution is not better, accept it with a probability of e^(-cost/temp).
@@ -587,6 +666,7 @@ for i in range(steps):
                 current_unrelaxed_protein[oligo] = copy.deepcopy(try_unrelaxed_protein[oligo])
                 current_plddts[oligo] = try_plddts[oligo].copy()
                 current_ptms[oligo] = float(try_ptms[oligo])
+                current_pae[oligo] = try_pae[oligo].copy()
                 current_loss = float(try_loss)
 
         else:
@@ -597,6 +677,8 @@ for i in range(steps):
     if accepted == True:
 
         for oligo in oligomers:
+            np.save(f'{prefix}_models/{prefix}_{oligo}_step_{str(i).zfill(4)}.npy', current_pae[oligo]) 
+            
             with open(f'{prefix}_models/{prefix}_{oligo}_step_{str(i).zfill(4)}.pdb', 'w') as f:
                 f.write(protein.to_pdb(current_unrelaxed_protein[oligo]))
                 f.write(f'plddt_array {",".join(current_plddts[oligo].astype(str))}\n')
