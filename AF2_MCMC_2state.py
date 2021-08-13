@@ -72,6 +72,12 @@ parser.add_argument(
         default=False
         )
 parser.add_argument(
+        '--single',
+        help='use this flag if you want to do 1-state design (ignores the second oligomer). Default is False.',
+        action='store_true',
+        default=False
+        )
+parser.add_argument(
         '--L1',
         help='the length of protomer 1. Must be specified if using the random flag.',
         action='store',
@@ -194,15 +200,18 @@ args = parser.parse_args()
 
 # Errors.
 if (args.random == True and args.L1 is None) or (args.random == False and args.L1 is not None):
-    print('ERROR: If random sequence initalisation is desired, both the protomer length (L1) and the --random flag must be provided. System exiting.')
+    print('ERROR: If random sequence initalisation is desired, both the protomer length (L1) and the --random flag must be provided. System exiting...')
     sys.exit()
 
-elif args.oligo1 is None or args.oligo2 is None:
-    print('ERROR: The number of subunits for each oligomer must be specified. System exiting.')
+elif (args.oligo1 is None or args.oligo2 is None) and args.single == False:
+    print('ERROR: The number of subunits for each oligomer must be specified for 2-state design. System exiting...')
     sys.exit()
+
+elif args.oligo1 is None and args.single == True:
+    print('ERROR: the number of subunits must be specified. System exiting...')
 
 elif args.oligo2 != 2 and (args.seq2 is not None or args.L2 is not None):
-    print('ERROR: 2-state hallucination for homo-/hetero-oligomer where the hetero-oligomer is not a dimer (--oligo2 != 2) has not been implemented yet. System exiting.')
+    print('ERROR: 2-state hallucination for homo-/hetero-oligomer where the hetero-oligomer is not a dimer (--oligo2 != 2) has not been implemented yet. System exiting...')
     sys.exit()
 
 # Warnings.
@@ -213,9 +222,13 @@ elif (args.seq1 is not None and args.L1 is not None) or (args.seq2 is not None a
     print('WARNING: Both a sequence and a length were provided. Are you sure of what you are doing?')
 
 # Notes.
-if args.seq2 is None and args.L2 is None:
+if args.seq2 is None and args.L2 is None and args.single == False:
     print('NOTE: Hallucination will produce one sequence that can exist in two different homo-oligomeric states (quasi-symmetric design).')
     sim_type = 'quasi-sym'
+
+elif args.single == True:
+    print('NOTE: Hallucination will produce one sequence and optimise it for a single oligomer state (1-state design).')
+    sim_type = 'single'
 
 else:
     print('NOTE: Hallucination will produce two sequences, one existing in both a homo-oligomeric and hetero-oligomeric state, and the second one existing as a hetero-oligomer.')
@@ -265,12 +278,20 @@ if sim_type == 'quasi-sym':
 elif sim_type == 'hetero-sym':
     oligomers = ['homo', 'hetero']
 
+elif sim_type == 'single':
+    oligomers = ['oligo']
+
 prefix = args.prefix
 
 os.makedirs(f'{prefix}_models', exist_ok=True)
 
 with open(f'{prefix}_models/{prefix}.out', 'w') as f:
-    f.write(f'step accepted temperature mutations loss plddt_mean ptm_mean sequence_{oligomers[0]} plddt_{oligomers[0]} ptm_{oligomers[0]} sequence_{oligomers[1]} plddt_{oligomers[1]} ptm_{oligomers[1]}\n')
+    print_str = 'step accepted temperature mutations loss plddt_mean ptm_mean '
+    for oligo in oligomers:
+        print_str += f'sequence_{oligo} plddt_{oligo} ptm_{oligo} '
+        
+    print_str += '\n'
+    f.write(print_str)
 
 if args.seq1 is not None:
     init_proto1 = args.seq1
@@ -305,6 +326,11 @@ elif sim_type == 'hetero-sym':
     Ls['hetero'] = [proto1_L, proto2_L]
     print(f'Protomer 1 seed sequence ({proto1_L} AA): {init_proto1}')
     print(f'Protomer 2 seed sequence ({proto2_L} AA): {init_proto2}')
+
+elif sim_type == 'single':
+    proto1_L = len(init_proto1)
+    Ls['oligo'] = [proto1_L] * args.oligo1
+    print(f'Protomer 1 seed sequence ({proto1_L} AA): {init_proto1}')
 
 print(f'Number of subunits in oligomer 1: {args.oligo1}')
 print(f'Number of subunits in oligomer 2: {args.oligo2}')
@@ -444,6 +470,9 @@ elif sim_type == 'hetero-sym':
     current_sequence[oligomers[0]] = init_proto1 * args.oligo1
     current_sequence[oligomers[1]] = init_proto1 + init_proto2
 
+elif sim_type == 'single':
+    current_sequence[oligomers[0]] = init_proto1 * args.oligo1
+
 current_unrelaxed_protein = {}
 old_unrelaxed_protein = {}
 try_unrelaxed_protein = {}
@@ -491,7 +520,7 @@ for i in range(steps):
     # Mutate sequences.
     n_mutations = round(M[i]) # current mutation rate
 
-    if sim_type == 'quasi-sym':
+    if sim_type == 'quasi-sym' or sim_type == 'single':
         try_proto1 = str(old_sequence[oligomers[0]][:proto1_L])
         try_proto = [try_proto1]
 
@@ -508,7 +537,7 @@ for i in range(steps):
         elif args.update == 'plddt': # not sure it works
             print(f'{args.update} update implementation is doubtful at present. System exiting...')
             sys.exit()
-            '''
+            
             if j == 0:
                 reshaped_plddts = old_plddts[oligomers[j]].reshape((len(Ls[oligomers[j]]), -1)) # make plddts array of shape (n_oligo, seq_L)
 
@@ -532,13 +561,13 @@ for i in range(steps):
             print(oligomers[j])
             print(reshaped_plddts)
             print(mutable_pos)
-            ''' 
+             
         elif '.res' in args.update: # not implemented yet
             print(f'{args.update} update implementation not done yet. System exiting...')
             sys.exit()
-            '''
+            
             mutable_pos = np.array(open(args.update, 'r').readlines()[(j * 2) + 1].split(), dtype=int)
-            '''
+            
 
         for p in mutable_pos:
             proto = proto[:p] + np.random.choice(list(AA_freq.keys()), p=adj_freq) + proto[p+1:]
@@ -554,6 +583,8 @@ for i in range(steps):
         try_sequence[oligomers[0]] = try_proto[0] * args.oligo1
         try_sequence[oligomers[1]] = try_proto[0] + try_proto[1]
 
+    elif sim_type == 'single':
+        try_sequence[oligomers[0]] = try_proto[0] * args.oligo1
 
     if i == 0: # do a first pass through the network before mutating anything -- baseline
         for oligo in oligomers:
@@ -677,7 +708,8 @@ for i in range(steps):
     if accepted == True:
 
         for oligo in oligomers:
-            np.save(f'{prefix}_models/{prefix}_{oligo}_step_{str(i).zfill(4)}.npy', current_pae[oligo]) 
+            
+            #np.save(f'{prefix}_models/{prefix}_{oligo}_step_{str(i).zfill(4)}.npy', current_pae[oligo]) # save PAE matrix for each accepted step
             
             with open(f'{prefix}_models/{prefix}_{oligo}_step_{str(i).zfill(4)}.pdb', 'w') as f:
                 f.write(protein.to_pdb(current_unrelaxed_protein[oligo]))
