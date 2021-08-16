@@ -2,7 +2,7 @@
 
 ## Script for performing 2-state design using AlphaFold2 MCMC hallucination.
 ## Basile Wicky <basile.wicky@gmail.com>
-## 2021-08-12
+## 2021-08-14
 
 ## SUMMARY:
 ## - MCMC trajectories can either be seeded with an input sequence, or started randomly.
@@ -11,9 +11,15 @@
 ## - The oligomeric state (number of subunits) for each oligomer (state) can be specified. 
 ## - Specific amino acids can be exluded.
 ## - MCMC paramters (initial temperature, annealing half-life, steps) can be specified.
-## - The loss function can either be plDDT, pTM, entropy, or dual. Dual is currently recommended because
-##   plDDT has trouble converging to complex formation, and pTM tends to 'melt' input structures.
-##   Entropy is unlikely to work well at the moment because of its definition.
+## - The loss function can either be:
+##   - plddt: plDDT seem to have trouble converging to complex formation.
+##   - ptm: pTM tends to 'melt' input structures.
+##   - pae: similar to result as ptm?
+##   - dual: combination of plddt and ptm losses.
+##   - entropy: current implementation unlikely to work.
+##   - pae_sub_mat: initially made to enforce symmetry, but probably not working.
+##   - cyclic: new trial loss to enforce symmetry. Not sure it is working. Needs to be benchmarked.
+##   - dual_cyclic: dual with an added geometric loss term to enforce symmetry.
 
 ## MINIMLAL INPUTS:
 ## - The length of each protomer.
@@ -24,13 +30,11 @@
 ## - A file (.out) containing the scores at each step of the MCMC trajectory.
 
 ## TODO:
-## - A PAE-based loss looking at each off-diagonal matrix to enforce symmetry?
 ## - A CCE-based loss to enable constrained hallucination based on an input structure? 
 ##   Or RMSD-based to a motif/structure?
 ## - Choice of negative/positive design? Currently only does positive 2-state design.
 ## - Check AA frequencies.
-## - How to normalise the PAE loss, or find good temperature if using that loss since it scales outside of 0-1?
-
+## - Check if normalising pae and pae-derived losses by their init value is an appropriate scaling method?
 
 #######################################
 # LIBRARIES 
@@ -148,15 +152,15 @@ parser.add_argument(
         )
 parser.add_argument(
         '--half_life',
-        help='half-life for the temperature decay during simulated annealing. Default is 500.',
-        default=500,
+        help='half-life for the temperature decay during simulated annealing. Default is 1000.',
+        default=1000,
         action='store',
         type=float
         )
 parser.add_argument(
         '--steps',
-        help='number for steps for the MCMC trajectory. Default is 3000.',
-        default=3000,
+        help='number for steps for the MCMC trajectory. Default is 5000.',
+        default=5000,
         action='store', 
         type=int
         )
@@ -169,8 +173,8 @@ parser.add_argument(
         )
 parser.add_argument(
         '--loss',
-        help='the loss function used during optimization. Choice of {plddt, ptm, pae, entropy, dual, pae_sub_mat}. Default is dual.',
-        default='dual',
+        help='the loss function used during optimization. Choice of {plddt, ptm, pae, entropy, dual, dual_cyclic, pae_sub_mat, cyclic}. Default is dual_cyclic.',
+        default='dual_cyclic',
         type=str
         )
 parser.add_argument(
@@ -195,7 +199,7 @@ parser.add_argument(
 ##################################
 
 args = parser.parse_args()
-
+print(args)
 # Some sanity-checks.
 
 # Errors.
@@ -500,7 +504,8 @@ for oligo in oligomers:
     current_pae[oligo] = np.random.normal(loc=0.5, scale=0.1, size=(len(current_sequence[oligo]), len(current_sequence[oligo])))
     current_dist[oligo] =  np.random.normal(loc=3, scale=0.5, size=(len(current_sequence[oligo]), len(current_sequence[oligo]), 64)) # distogram is 3D
 
-current_loss = 100
+current_loss = 1e42
+norm = 1 # for pae, and pae-derived losses normalisation -- re-assigned after first prediction
 
 for i in range(steps):
 
@@ -513,6 +518,8 @@ for i in range(steps):
         old_plddts[oligo] = current_plddts[oligo].copy()
         old_ptms[oligo] = float(current_ptms[oligo])
         old_pae[oligo] = current_pae.copy()
+        old_dist[oligo] = current_dist.copy()
+
 
     old_loss = float(current_loss)
     accepted = False
@@ -622,7 +629,11 @@ for i in range(steps):
         # Using this loss will optimise the mean of the pae matrix (predicted alignment error). 
         # This loss has not been properly benchmarked, but some early results suggest that it might suffer from the same problem as ptm.
         # During optimisation, off-digonal contacts (inter-chain) may get optimsed at the expense of the diagonal elements (intra-chain).
-        try_loss = np.mean([np.mean(try_pae[oligo]) for oligo in oligomers])
+        try_loss = np.mean([np.mean(try_pae[oligo]) for oligo in oligomers]) / norm
+
+        if i == 0:
+            norm = float(try_loss)
+
 
     elif args.loss == 'entropy': 
         # CAUTION:
@@ -647,8 +658,8 @@ for i in range(steps):
     elif args.loss == 'pae_sub_mat':
         # NOTE:
         # This loss optimises the mean of the pae sub-matrices means.
-        # The idea is that all intra- and inter-chain predictions should converge at the same 'rate'.
-        # Untested, but hopefully will improve the hallucination of symmetric Cn where n > 3.
+        # The value of the loss will be different to pae in the hetero-oligomeric case.
+        # The mean of the sub matrices' means is different from the overall mean if the sub matrices don't all have the same shape. 
         sub_mat = []
         for oligo in oligomers:
             prev1, prev2 = 0, 0
@@ -664,7 +675,110 @@ for i in range(steps):
                 prev2 = 0
                 prev1 = Lcorr1
 
-        try_loss = np.mean([np.mean(sub_m) for sub_m in sub_mat])
+        try_loss = np.mean([np.mean(sub_m) for sub_m in sub_mat]) / norm
+
+        if i == 0:
+            norm = float(try_loss)
+
+
+    elif args.loss == 'cyclic':
+        # NOTE:
+        # This loss has different weights associated to the means of the different PAE sub matrices.
+        # The idea is enforcing loss optimisation for adjacent units to force cyclisation.
+        # Off-diagonal elements (+/-1 from the diagaonl, and opposite corners) have higher weights.
+        # The weight correction is scaled with the shape of the matrix of sub matrices.
+        # By default is scales so that the re-weighted terms count as much as the rest (irrespective of the size of the matrix of sub matrices)
+
+        contribution = 0.5 # if set to one, the re-weighting is done such that diagonal/corner elements count as much as the rest.
+        means = []
+        for oligo in oligomers:
+            sub_mat_means = []
+            prev1, prev2 = 0, 0
+
+            for L1 in Ls[oligo]:
+                Lcorr1 = prev1 + L1
+
+                for L2 in Ls[oligo]:
+                    Lcorr2 = prev2 + L2
+                    sub_mat_means.append(np.mean(try_pae[oligo][prev1:Lcorr1, prev2:Lcorr2])) # mean of the sub matrix
+                    prev2 = Lcorr2
+
+                prev2 = 0
+                prev1 = Lcorr1
+
+            L = np.sum(Ls[oligo])
+            w_corr = contribution * (L**2) / (2 * L) # correction scales with the size of the matrix of sub matrices and the desired contribution.
+            
+            # Weight matrix
+            W = np.ones((len(Ls[oligo]), len(Ls[oligo])))
+            W[0, -1] = 1 * w_corr
+            W[-1, 0] = 1 * w_corr
+            W[np.where(np.eye(*W.shape, k=-1) == 1)] = 1 * w_corr
+            W[np.where(np.eye(*W.shape, k=1) == 1)] = 1 * w_corr
+
+            means.append(np.mean( W * np.reshape(sub_mat_means, (len(Ls[oligo]), len(Ls[oligo])))))
+
+        try_loss = np.mean(means) / norm
+
+        if i == 0:
+            norm = float(try_loss)
+
+    elif args.loss == 'dual_cyclic':
+        # NOTE:
+        # This loss is based on dual, but adds a geometric term that forces a cyclic symmetry
+        # At each step the PDB is generated, and the distance between the center of mass of adjacent units computed.
+        # The standard deviation of these neighbour distances is added to the loss.
+
+        separation_std = []
+        for oligo in oligomers:
+            coord = []
+            
+            with open(f'{prefix}_models/tmp.pdb', 'w') as f: # write temporary PDB file
+                f.write(protein.to_pdb(try_unrelaxed_protein[oligo]))
+ 
+            with open(f'{prefix}_models/tmp.pdb', 'r') as f:
+                lines = f.readlines()
+            
+                for l in lines: # parse PDB and extract CA coordinates
+                    s = l.split()
+                    
+                    if s[0] == 'ATOM' and s[2] == 'CA':
+            
+                        if len(s[4]) > 1: # residue idx and chain id are no longer space-separated at high id values
+                            coord.append([s[4][0], int(s[4][1:]), np.array(s[5:8], dtype=float)])
+            
+                        else:
+                            coord.append([s[4], int(s[5]), np.array(s[6:9], dtype=float)])
+            
+            c = np.array(coord, dtype=object)
+
+            # Find chain breaks.
+            ch_breaks = np.where(np.diff(c[:, 1])>1)[0]
+            ch_ends = np.append(ch_breaks, len(c)-1)
+            ch_starts = np.insert(ch_ends[:-1], 0, 0)
+
+            chain_list = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+            for k, start_finish in enumerate(list(zip(ch_starts, ch_ends))):
+                c[start_finish[0] + 1:start_finish[1]+1, 0] = chain_list[k] # re-assign chains based on chain breaks
+
+            # Compute center of mass (CA) of each chain.
+            chains = set(c[:,0])
+            center_of_mass = {ch:float for ch in chains}
+            for ch in chains:
+                center_of_mass[ch] = np.mean(c[c[:,0]==ch][:,2:], axis=0)[0]
+
+            # Compare distances between adjacent chains, including first-last.
+            chain_order = sorted(center_of_mass.keys())
+            next_chain = np.roll(chain_order, -1)
+
+            proto_dist = []
+            for k, ch in enumerate(chain_order):
+                proto_dist.append(np.linalg.norm(center_of_mass[next_chain[k]]-center_of_mass[ch])) # compute separation distances.
+
+            separation_std.append(np.std(np.array(proto_dist))) # the standard deviation of the distance separation
+        
+        try_loss = 1 - (np.mean([try_ptms[oligo] for oligo in oligomers]) / 3) - (np.mean([np.mean(try_plddts[oligo]) for oligo in oligomers]) / 300) + (np.mean(separation_std) / 30)
+
 
     delta = try_loss - old_loss # all losses defined such optimising requires minimising.
 
@@ -709,7 +823,7 @@ for i in range(steps):
 
         for oligo in oligomers:
             
-            #np.save(f'{prefix}_models/{prefix}_{oligo}_step_{str(i).zfill(4)}.npy', current_pae[oligo]) # save PAE matrix for each accepted step
+            np.save(f'{prefix}_models/{prefix}_{oligo}_step_{str(i).zfill(4)}.npy', current_pae[oligo]) # save PAE matrix for each accepted step
             
             with open(f'{prefix}_models/{prefix}_{oligo}_step_{str(i).zfill(4)}.pdb', 'w') as f:
                 f.write(protein.to_pdb(current_unrelaxed_protein[oligo]))
