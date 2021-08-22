@@ -73,7 +73,7 @@ def get_args():
             '--loss',
             default='dual',
             type=str,
-            help='the loss function used during optimization. Choose from [plddt, ptm, pae, pae_sub_mat, pae_asym, entropy, dual, dual_cyclic] (default: %(default)s).'
+            help='the loss function used during optimization. Choose from [plddt, ptm, pae, pae_sub_mat, pae_asym, entropy, dual, dual_cyclic, dual_dssp] (default: %(default)s).'
             )
 
     # MCMC arguments.
@@ -131,6 +131,14 @@ def get_args():
             action='store',
             type=int,
             help='the number of MSA clusters used during feature generation (?). Larger numbers increase accuracy but significantly affect runtime (default: %(default)s).'
+            )
+
+    parser.add_argument(
+            '--amber_relax_pdbs',
+            default=0,
+            action='store',
+            type=int,
+            help='amber relax pdbs written to disk (default: %(default)s).'
             )
 
     parser.add_argument(
