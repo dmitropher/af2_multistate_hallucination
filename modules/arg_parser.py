@@ -66,7 +66,7 @@ def get_args():
             default='random',
             action='store',
             type=str,
-            help='how to update the sequence at each step. Choose from [random, plddt, FILE.res]. FILE.res needs to be a file specifying mutable positions (default: %(default)s).'
+            help='how to update the sequence at each step. Choose from [random, plddt, FILE.af2h]. FILE.af2h needs to be a file specifying the probability of mutation at each site (default: %(default)s).'
             )
 
     parser.add_argument(
@@ -152,7 +152,7 @@ def get_args():
         print('ERROR: the definiton for each oligomer must be specified. System exiting...')
         sys.exit()
 
-    if args.L is None and args.seq is None:
+    if args.L is None and args.seq is None and '.af2h' not in args.update:
         print('ERROR: either seed sequence(s) or length(s) must specified. System exiting...')
         sys.exit()
 
@@ -161,7 +161,7 @@ def get_args():
         sys.exit()
 
     # Warnings.
-    if (args.L is not None) and (args.seq is not None):
+    if (args.L is not None) and (args.seq is not None or '.af2h' in args.update):
         print('WARNING: Both user-defined sequence(s) and length(s) were provided. Are you sure of what you are doing? The simulation will continue assuming you wanted to use the provided sequence(s) as seed(s).')
 
     # Add some arguments.
@@ -177,6 +177,32 @@ def get_args():
 
         else:
             args.proto_Ls = [int(length) if length!='' else 0 for length in args.L.split(',')]
+
+
+    elif '.af2h' in args.update:
+    # Parse .af2h file -- should be fasta, with an extra line after the sequence.
+    # The line after the sequence should be a comma-separated list of values (of the same length as the sequence) that represents the probability of mutating each position.
+        with open(args.update, 'r') as f:
+            lines = list(line for line in (l.strip() for l in f) if line) # strip empty lines.
+            seq_prob = {}
+            for entry in np.reshape(lines, (-1, 3)):
+                freq = np.array(entry[2].split(','), dtype=float)
+                ajd_freq =  freq / freq.sum() # re-adjust frequencies to sum to 1 across the length of each protomer.
+                seq_prob[entry[0][1:]] = {'seq':entry[1], 'prob':ajd_freq}
+
+            for proto in args.unique_protomers: # complete with empty entries in case the user did not specify all protomers -- these will be replace by randomly generated sequences at initalisation.
+                if proto not in list(seq_prob.keys()):
+                    seq_prob[proto] = {'seq':'', 'prob':''}
+
+        args.proto_sequences = [seq_prob[proto]['seq'] for proto in args.unique_protomers]
+        args.position_weights = [seq_prob[proto]['prob'] for proto in args.unique_protomers]
+
+        if args.L is None:
+            args.proto_Ls = [len(seq) for seq in args.proto_sequences]
+
+        else:
+            args.proto_Ls = [int(length) if length!='' else 0 for length in args.L.split(',')]
+
 
     else:
         args.proto_Ls = np.array(args.L.split(','), dtype=int)

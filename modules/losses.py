@@ -95,10 +95,10 @@ def compute_loss(loss_type, oligo):
         sub_mat_init = []
         sub_mat = []
         prev1, prev2 = 0, 0
-        for L1 in oligo.oligo_L:
+        for L1 in oligo.chain_Ls:
             Lcorr1 = prev1 + L1
 
-            for L2 in oligo.oligo_L:
+            for L2 in oligo.chain_Ls:
                 Lcorr2 = prev2 + L2
                 sub_mat_init.append(oligo.init_prediction_results['predicted_aligned_error'][prev1:Lcorr1, prev2:Lcorr2]) # means of the initial sub-matrices
                 sub_mat.append(oligo.try_prediction_results['predicted_aligned_error'][prev1:Lcorr1, prev2:Lcorr2]) # means of the tried move sub-matrices
@@ -124,10 +124,10 @@ def compute_loss(loss_type, oligo):
         sub_mat_means_init = []
         sub_mat_means = []
         prev1, prev2 = 0, 0
-        for L1 in oligo.oligo_L:
+        for L1 in oligo.chain_Ls:
             Lcorr1 = prev1 + L1
 
-            for L2 in oligo.oligo_L:
+            for L2 in oligo.chain_Ls:
                 Lcorr2 = prev2 + L2
                 sub_mat_means_init.append(np.mean(oligo.init_prediction_results['predicted_aligned_error'][prev1:Lcorr1, prev2:Lcorr2])) # means of the initial sub-matrices
                 sub_mat_means.append(np.mean(oligo.try_prediction_results['predicted_aligned_error'][prev1:Lcorr1, prev2:Lcorr2])) # means of the tried move sub-matrices

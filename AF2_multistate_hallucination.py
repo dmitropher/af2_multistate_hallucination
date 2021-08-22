@@ -57,6 +57,7 @@ import copy
 
 sys.path.append('modules/') # import modules
 from arg_parser import *
+from seq_mutation import *
 from af2_net import *
 from losses import *
 
@@ -75,21 +76,33 @@ class Protomers:
     sequences: sequences corresponding to each protomer (in alphabetic order). Optional.
     '''
 
-    def __init__(self, unique_protomers=[], lengths=[], aa_freq={}, sequences=None):
+    def __init__(self, unique_protomers=[], lengths=[], aa_freq={}, sequences=None, position_weights=None):
 
         # Initialise sequences.
         self.init_sequences = {}
+        self.position_weights = {}
         if sequences is None:
             for z in list(zip(unique_protomers, lengths)):
                 self.init_sequences[z[0]] = ''.join(np.random.choice(list(AA_freq.keys()), size=z[1], p=list(AA_freq.values())))
+                self.position_weights[z[0]] = np.ones(z[1]) / z[1]
 
         else:
             for p, proto in enumerate(unique_protomers):
                 if sequences[p] == '': # empty sequence
                     self.init_sequences[proto] = ''.join(np.random.choice(list(AA_freq.keys()), size=lengths[p], p=list(AA_freq.values())))
+                    self.position_weights[proto] = np.ones(lengths[p]) / lengths[p]
 
                 else:
                     self.init_sequences[proto] = sequences[p]
+                    if position_weights is None:
+                        self.position_weights[proto] = np.ones(lengths[p]) / lengths[p]
+
+                    else:
+                        if position_weights[p] == '':
+                            self.position_weights[proto] = np.ones(lengths[p]) / lengths[p]
+
+                        else:
+                            self.position_weights[proto] = position_weights[p]
 
         # Initialise lengths.
         self.lengths = {}
@@ -100,52 +113,14 @@ class Protomers:
         self.try_sequences = {p:s for p, s in self.init_sequences.items()}
 
     # Method functions
-    def update(self):
+    def assign_mutations(self, mutated_protomers):
+        '''Assign mutated sequences to try_sequences.'''
+        self.try_sequences = mutated_protomers
+
+    def update_mutations(self):
         '''Update current sequences to try sequences.'''
         self.current_sequences = copy.deepcopy(self.try_sequences)
 
-    def mutate(self, n_mutations, update_type, aa_freq):
-        '''Mutate protomer sequences.'''
-
-        for proto, seq in self.current_sequences.items():
-
-            if update_type == 'random':
-                mutable_pos = np.random.choice(range(len(seq)), size=n_mutations, replace=False)
-
-            elif args.update == 'plddt': # not working yet.
-                print(f'Implementation for sequence update based on plddt not working at present. System exiting...')
-                sys.exit()
-
-                if j == 0:
-                    reshaped_plddts = old_plddts[oligomers[j]].reshape((len(Ls[oligomers[j]]), -1)) # make plddts array of shape (n_oligo, seq_L)
-
-                elif j == 1:
-
-                    if sim_type == 'quasi-sym':
-                        reshaped_plddts = old_plddts[oligomers[j]].reshape((len(Ls[oligomers[j]]), -1)) # make plddts array of shape (n_oligo, seq_L)
-
-                    elif sim_type == 'hetero-sym':
-                        reshaped_plddts = old_plddts[oligomers[j]][Ls[oligomers[j]][0]:]
-
-                sites = np.argpartition(reshaped_plddts, n_mutations)[:n_mutations]
-                adj_sites = []
-
-                for ch, seq_L in enumerate(Ls[oligomers[j]]):
-                    corr_sites = sites - (ch * seq_L)
-                    adj_sites.append(np.where(np.logical_and(corr_sites >= 0, corr_sites < seq_L), corr_sites, np.zeros(len(sites))))
-
-                mutable_pos = np.sum(adj_sites, axis=0, dtype=int)
-
-            elif '.res' in update_type: # not implemented yet.
-                print(f'RESFILE-based sequence update not implemented yet. System exiting...')
-                sys.exit()
-
-                mutable_pos = np.array(open(update_type, 'r').readlines()[(j * 2) + 1].split(), dtype=int)
-
-            for p in mutable_pos:
-                seq = seq[:p] + np.random.choice(list(aa_freq.keys()), p=list(AA_freq.values())) + seq[p+1:]
-
-            self.try_sequences[proto] = seq
 
 class Oligomer:
     '''
@@ -271,15 +246,16 @@ AA_freq = dict(zip(AA_freq, adj_freq))
 print(f'Allowed amino acids: {len(AA_freq.keys())} [{" ".join([aa for aa in list(AA_freq.keys())])}]')
 print(f'Excluded amino acids: {len(args.exclude_AA)} [{" ".join([aa for aa in args.exclude_AA])}]')
 
-# Initialise Protomer object (one for the simulation).
-if args.seq is None:
+# Initialise Protomer object (one for the whole simulation).
+if args.proto_sequences is None:
     protomers = Protomers(unique_protomers=args.unique_protomers, lengths=args.proto_Ls, aa_freq=AA_freq)
 
 else:
-    protomers = Protomers(unique_protomers=args.unique_protomers, lengths=args.proto_Ls, aa_freq=AA_freq, sequences=args.proto_sequences)
+    protomers = Protomers(unique_protomers=args.unique_protomers, lengths=args.proto_Ls, aa_freq=AA_freq, sequences=args.proto_sequences, position_weights=args.position_weights)
 
 for proto, seq in protomers.init_sequences.items():
     print(f'Protomer {proto} init sequence: {seq}')
+    print(f'Protomer {proto} position-specific weights: {protomers.position_weights[proto]}')
 
 # Initialise Oligomer objects (one for each specified oligomer).
 oligomers = {}
@@ -291,7 +267,8 @@ model_runners = setup_models(args.oligo.split(','), model_id=args.model, recycle
 
 # Start score file.
 with open(f'{args.out}_models/{args.out}.out', 'w') as f:
-    print_str = 'step accepted temperature mutations loss plddt ptm pae '
+    print_str = f'# {args}\n'
+    print_str += 'step accepted temperature mutations loss plddt ptm pae '
     for oligo in oligomers.keys():
         print_str += f'sequence_{oligo} loss_{oligo} plddt_{oligo} ptm_{oligo} pae_{oligo}'
     print_str += '\n'
@@ -327,7 +304,15 @@ for i in range(args.steps):
             try_loss += loss # increment global loss
 
     else: # mutate protomer sequences and generate updated oligomer sequences
-        protomers.mutate(n_mutations, args.update, AA_freq) # mutate protomers
+
+        if args.update == 'random':
+            protomers.assign_mutations(mutate_random(n_mutations, protomers, AA_freq)) # mutate protomers
+
+        elif args.update == 'plddt':
+            protomers.assign_mutations(mutate_plddt(n_mutations, protomers, oligomers, AA_freq)) # mutate protomers
+
+        elif '.af2h' in args.update:
+            protomers.assign_mutations(mutate_resfile(n_mutations, protomers, AA_freq)) # mutate protomers
 
         for name, oligo in oligomers.items():
             oligo.assign_oligo(protomers) # make new oligomers from mutated protomer sequences
@@ -347,7 +332,7 @@ for i in range(args.steps):
         print(f'Step {i}: change accepted\n>>LOSS {current_loss} --> {try_loss}')
 
         current_loss = float(try_loss) # accept loss change
-        protomers.update() # accept sequence changes
+        protomers.update_mutations() # accept sequence changes
 
         for name, oligo in oligomers.items():
             print(f' >{name} loss {oligo.current_loss} --> {oligo.try_loss}')
@@ -368,7 +353,7 @@ for i in range(args.steps):
             print(f'Step {i}: change accepted despite not improving the loss\n>>LOSS {current_loss} --> {try_loss}')
 
             current_loss = float(try_loss)
-            protomers.update() # accept sequence changes
+            protomers.update_mutations() # accept sequence changes
 
             for name, oligo in oligomers.items():
                 print(f' >{name} loss {oligo.current_loss} --> {oligo.try_loss}')
