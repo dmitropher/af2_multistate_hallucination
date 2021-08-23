@@ -55,8 +55,8 @@ import os, sys
 import numpy as np
 import copy
 
-sys.path.append('modules/') # import modules
-
+script_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(script_dir + '/modules/') # import modules
 from arg_parser import *
 from seq_mutation import *
 from af2_net import *
@@ -103,7 +103,7 @@ class Protomers:
                             self.position_weights[proto] = np.ones(lengths[p]) / lengths[p]
 
                         else:
-                            self.position_weights[proto] = position_weights[p]
+                            self.position_weights[proto] = np.array(position_weights[p])
 
         # Initialise lengths.
         self.lengths = {}
@@ -197,9 +197,7 @@ class Oligomer:
 # INITALISATION
 ##################################
 
-# parse args
 args = get_args(); print(args)
-
 
 os.makedirs(f'{args.out}_models', exist_ok=True) # where all the outputs will go.
 
@@ -311,7 +309,7 @@ for o in args.oligo.split(','):
 model_runners = setup_models(args.oligo.split(','), model_id=args.model, recycles=args.recycles, msa_clusters=args.msa_clusters)
 
 # Start score file.
-with open(f'{args.out}_models/{os.path.splitext(os.path.basename(args.out))[0]}.out', 'w') as f:
+with open(f'{args.out}_models/{args.out}.out', 'w') as f:
     print_str = f'# {args}\n'
     print_str += 'step accepted temperature mutations loss plddt ptm pae '
     for oligo in oligomers.keys():
@@ -329,77 +327,58 @@ M = np.linspace(int(Mi), int(Mf), args.steps) # stepped linear decay of the muta
 
 current_loss = np.inf
 rolling_window = []
+rolling_window_width = 100
 for i in range(args.steps):
 
-    if i > 100 and np.std(rolling_window) < args.tolerance:
-        print(f'The change in loss over the last 100 steps has fallen under the tolerance threshold ({args.tolerance}). Terminating the simulation...')
-        sys.exit()
+    if args.tolerance is not None and i > rolling_window_width: # check if change in loss falls under the tolerance threshold for terminating the simulation.
 
-    # Update a few things.
-    T = args.T_init * (np.exp(np.log(0.5) / args.half_life) ** i) # update temperature
-    n_mutations = round(M[i]) # update mutation rate
-    accepted = False # reset
-    try_loss = 0.0
-    if i == 0: # do a first pass through the network before mutating anything -- baseline
-        for name, oligo in oligomers.items():
-            af2_prediction = predict_structure(oligo, model_runners[name], random_seed=np.random.randint(10),) # run AlphaFold2 prediction
-            oligo.init_prediction(af2_prediction) # assign
-            loss = compute_loss(args.loss, oligo) # calculate the loss
-            oligo.init_loss(loss) # assign
-            try_loss += loss # increment global loss
-
-    else: # mutate protomer sequences and generate updated oligomer sequences
-
-        if args.update == 'random':
-            protomers.assign_mutations(mutate_random(n_mutations, protomers, AA_freq)) # mutate protomers
-
-        elif args.update == 'plddt':
-            protomers.assign_mutations(mutate_plddt(n_mutations, protomers, oligomers, AA_freq)) # mutate protomers
-
-        elif '.af2h' in args.update:
-            protomers.assign_mutations(mutate_resfile(n_mutations, protomers, AA_freq)) # mutate protomers
-
-        for name, oligo in oligomers.items():
-            oligo.assign_oligo(protomers) # make new oligomers from mutated protomer sequences
-            oligo.assign_prediction(predict_structure(oligo, model_runners[name], 
-                                                        random_seed=np.random.randint(10) ,  ) 
-                                                        )  # run AlphaFold2 prediction
-            loss = compute_loss(args.loss, oligo) # calculate the loss for that oligomer
-            oligo.assign_loss(loss) # assign the loss to the object (for tracking)
-            try_loss += loss # increment the globabl loss
-
-    try_loss /= len(oligomers) # take the mean of the individual oligomer losses (forces scaling between 0 and 1)
-
-    delta = try_loss - current_loss # all losses must be defined such that optimising equates to minimising.
-
-    # If the new solution is better, accept it.
-    if delta < 0:
-        accepted = True
-
-        print(f'Step {i}: change accepted\n>>LOSS {current_loss} --> {try_loss}')
-
-        current_loss = float(try_loss) # accept loss change
-        protomers.update_mutations() # accept sequence changes
-
-        for name, oligo in oligomers.items():
-            print(f' >{name} loss {oligo.current_loss} --> {oligo.try_loss}')
-            print(f' >{name} plddt {np.mean(oligo.current_prediction_results["plddt"])} --> {np.mean(oligo.try_prediction_results["plddt"])}')
-            print(f' >{name} ptm {oligo.current_prediction_results["ptm"]} --> {oligo.try_prediction_results["ptm"]}')
-            print(f' >{name} pae {np.mean(oligo.current_prediction_results["predicted_aligned_error"])} --> {np.mean(oligo.try_prediction_results["predicted_aligned_error"])}')
-            print('-' * 70)
-            oligo.update_oligo() # accept sequence changes
-            oligo.update_prediction() # accept score/structure changes
-            oligo.update_loss() # accept loss change
-
-    # If the new solution is not better, accept it with a probability of e^(-cost/temp).
+        if np.std(rolling_window[-rolling_window_width:]) < args.tolerance:
+            print(f'The change in loss over the last 100 steps has fallen under the tolerance threshold ({args.tolerance}). Terminating the simulation...')
+            sys.exit()
     else:
 
-        if np.random.uniform(0, 1) < np.exp( -delta / T):
+        # Update a few things.
+        T = args.T_init * (np.exp(np.log(0.5) / args.half_life) ** i) # update temperature
+        n_mutations = round(M[i]) # update mutation rate
+        accepted = False # reset
+        try_loss = 0.0
+        if i == 0: # do a first pass through the network before mutating anything -- baseline
+            for name, oligo in oligomers.items():
+                af2_prediction = predict_structure(oligo, model_runners[name], random_seed=np.random.randint(10)) # run AlphaFold2 prediction
+                oligo.init_prediction(af2_prediction) # assign
+                loss = compute_loss(args.loss, oligo) # calculate the loss
+                oligo.init_loss(loss) # assign
+                try_loss += loss # increment global loss
+
+        else: # mutate protomer sequences and generate updated oligomer sequences
+
+            if args.update == 'random':
+                protomers.assign_mutations(mutate_random(n_mutations, protomers, AA_freq)) # mutate protomers
+
+            elif args.update == 'plddt':
+                protomers.assign_mutations(mutate_plddt(n_mutations, protomers, oligomers, AA_freq)) # mutate protomers
+
+            elif '.af2h' in args.update:
+                protomers.assign_mutations(mutate_resfile(n_mutations, protomers, AA_freq)) # mutate protomers
+
+            for name, oligo in oligomers.items():
+                oligo.assign_oligo(protomers) # make new oligomers from mutated protomer sequences
+                oligo.assign_prediction(predict_structure(oligo, model_runners[name], random_seed=np.random.randint(10))) # run AlphaFold2 prediction
+                loss = compute_loss(args.loss, oligo) # calculate the loss for that oligomer
+                oligo.assign_loss(loss) # assign the loss to the object (for tracking)
+                try_loss += loss # increment the globabl loss
+
+        try_loss /= len(oligomers) # take the mean of the individual oligomer losses (forces scaling between 0 and 1)
+
+        delta = try_loss - current_loss # all losses must be defined such that optimising equates to minimising.
+
+        # If the new solution is better, accept it.
+        if delta < 0:
             accepted = True
 
-            print(f'Step {i}: change accepted despite not improving the loss\n>>LOSS {current_loss} --> {try_loss}')
+            print(f'Step {i}: change accepted\n>>LOSS {current_loss} --> {try_loss}')
 
-            current_loss = float(try_loss)
+            current_loss = float(try_loss) # accept loss change
             protomers.update_mutations() # accept sequence changes
 
             for name, oligo in oligomers.items():
@@ -412,54 +391,78 @@ for i in range(args.steps):
                 oligo.update_prediction() # accept score/structure changes
                 oligo.update_loss() # accept loss change
 
-
+        # If the new solution is not better, accept it with a probability of e^(-cost/temp).
         else:
-            accepted = False
-            print(f'Step {i}: change rejected\n>>LOSS {current_loss} !-> {try_loss}')
-            print('-' * 70)
 
-    # Save PDB is move was accepted.
-    if accepted == True:
+            if np.random.uniform(0, 1) < np.exp( -delta / T):
+                accepted = True
+
+                print(f'Step {i}: change accepted despite not improving the loss\n>>LOSS {current_loss} --> {try_loss}')
+
+                current_loss = float(try_loss)
+                protomers.update_mutations() # accept sequence changes
+
+                for name, oligo in oligomers.items():
+                    print(f' >{name} loss {oligo.current_loss} --> {oligo.try_loss}')
+                    print(f' >{name} plddt {np.mean(oligo.current_prediction_results["plddt"])} --> {np.mean(oligo.try_prediction_results["plddt"])}')
+                    print(f' >{name} ptm {oligo.current_prediction_results["ptm"]} --> {oligo.try_prediction_results["ptm"]}')
+                    print(f' >{name} pae {np.mean(oligo.current_prediction_results["predicted_aligned_error"])} --> {np.mean(oligo.try_prediction_results["predicted_aligned_error"])}')
+                    print('-' * 70)
+                    oligo.update_oligo() # accept sequence changes
+                    oligo.update_prediction() # accept score/structure changes
+                    oligo.update_loss() # accept loss change
+
+
+            else:
+                accepted = False
+                print(f'Step {i}: change rejected\n>>LOSS {current_loss} !-> {try_loss}')
+                print('-' * 70)
+
+        # Save PDB is move was accepted.
+        if accepted == True:
+
+            for name, oligo in oligomers.items():
+
+                with open(f'{args.out}_models/{args.out}_{oligo.name}_step_{str(i).zfill(4)}.pdb', 'w') as f:
+                    f.write(protein.to_pdb(oligo.current_unrelaxed_structure))
+                    f.write(f'plddt_array {",".join(oligo.current_prediction_results["plddt"].astype(str))}\n')
+                    f.write(f'plddt {np.mean(oligo.current_prediction_results["plddt"])}\n')
+                    f.write(f'ptm {oligo.current_prediction_results["ptm"]}\n')
+                    f.write(f'pae {np.mean(oligo.current_prediction_results["predicted_aligned_error"])}\n')
+                    f.write(f'loss {oligo.current_loss}\n')
+
+                # Optionally save the PAE matrix
+                if args.output_pae == True:
+                    np.save(f'{args.out}_models/{args.out}_{oligo}_step_{str(i).zfill(4)}.npy', oligo.current_prediction_results['predicted_aligned_error'])
+
+
+        # Save scores for the step (even if rejected).
+        score_string = f'{i} '
+        score_string += f'{accepted} '
+        score_string += f'{T} '
+        score_string += f'{n_mutations} '
+        score_string += f'{try_loss} '
+        score_string += f'{np.mean([np.mean(r.try_prediction_results["plddt"]) for r in oligomers.values()])} '
+        score_string += f'{np.mean([r.try_prediction_results["ptm"] for r in oligomers.values()])} '
+        score_string += f'{np.mean([np.mean(r.try_prediction_results["predicted_aligned_error"]) for r in oligomers.values()])} '
 
         for name, oligo in oligomers.items():
+            breaked_seq = ''
+            Lprev = 0
+            for L in oligo.chain_Ls:
+                Lcorr = Lprev + L
+                breaked_seq += oligo.try_seq[Lprev:Lcorr] + '/'
+                Lprev = Lcorr
 
-            with open(f'{args.out}_models/{os.path.splitext(os.path.basename(args.out))[0]}_{oligo.name}_step_{str(i).zfill(4)}.pdb', 'w') as f:
-                if args.amber_relax == 0 :
-                    f.write(protein.to_pdb( oligo.current_unrelaxed_structure) )
-                elif args.amber_relax == 1 :
-                    f.write( amber_relax(oligo.current_unrelaxed_structure) )
-                f.write(f'plddt_array {",".join(oligo.current_prediction_results["plddt"].astype(str))}\n')
-                f.write(f'plddt {np.mean(oligo.current_prediction_results["plddt"])}\n')
-                f.write(f'ptm {oligo.current_prediction_results["ptm"]}\n')
-                f.write(f'pae {np.mean(oligo.current_prediction_results["predicted_aligned_error"])}\n')
-                f.write(f'loss {oligo.current_loss}\n')
+            score_string += f'{breaked_seq[:-1]} '
+            score_string += f'{oligo.try_loss} '
+            score_string += f'{np.mean(oligo.try_prediction_results["plddt"])} '
+            score_string += f'{oligo.try_prediction_results["ptm"]} '
+            score_string += f'{np.mean(oligo.try_prediction_results["predicted_aligned_error"])} '
 
-            # Optionally save the PAE matrix
-            if args.output_pae == True:
-                np.save(f'{args.out}_models/{args.out}_{oligo}_step_{str(i).zfill(4)}.npy', oligo.current_prediction_results['predicted_aligned_error'])
+        with open(f'{args.out}_models/{args.out}.out', 'a') as f:
+            f.write(score_string + '\n')
 
-
-    # Save scores for the step (even if rejected).
-    score_string = f'{i} '
-    score_string += f'{accepted} '
-    score_string += f'{T} '
-    score_string += f'{n_mutations} '
-    score_string += f'{try_loss} '
-    score_string += f'{np.mean([np.mean(r.try_prediction_results["plddt"]) for r in oligomers.values()])} '
-    score_string += f'{np.mean([r.try_prediction_results["ptm"] for r in oligomers.values()])} '
-    score_string += f'{np.mean([np.mean(r.try_prediction_results["predicted_aligned_error"]) for r in oligomers.values()])} '
-
-    for name, oligo in oligomers.items():
-        score_string += f'{oligo.try_seq} '
-        score_string += f'{oligo.try_loss} '
-        score_string += f'{np.mean(oligo.try_prediction_results["plddt"])} '
-        score_string += f'{oligo.try_prediction_results["ptm"]} '
-        score_string += f'{np.mean(oligo.try_prediction_results["predicted_aligned_error"])} '
-
-    with open(f'{args.out}_models/{os.path.splitext(os.path.basename(args.out))[0]}.out', 'a') as f:
-        f.write(score_string + '\n')
-
-    rolling_window.append(current_loss)
-    rolling_window = rolling_window[-100:]
+        rolling_window.append(current_loss)
 
 print('Done')

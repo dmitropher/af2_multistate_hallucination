@@ -11,8 +11,6 @@ sys.path.append('/projects/ml/alphafold/alphafold_git/')
 from alphafold.common import protein
 from alphafold.data import pipeline, templates
 from alphafold.model import data, config, model
-from alphafold.relax import relax
-
 
 def setup_models(oligo_names, model_id=4, recycles=1, msa_clusters=1):
     '''Setup AlphaFold2 models.'''
@@ -66,7 +64,7 @@ def mk_mock_template(query_sequence):
 
 def predict_structure(oligo_object,
                     model_runner: model.RunModel,
-                    random_seed=0, ):
+                    random_seed=0):
     """Predicts structure for a given oligomer using AlphaFold2."""
 
     query_sequence = oligo_object.try_seq
@@ -100,25 +98,8 @@ def predict_structure(oligo_object,
     processed_feature_dict = model_runner.process_features(feature_dict, random_seed=random_seed)
     prediction_results = model_runner.predict(processed_feature_dict)
     unrelaxed_protein = protein.from_prediction(processed_feature_dict, prediction_results)
-
-
     end = timer()
+
     print(f'{oligo_object.name} prediction took {(end - start):.2f} s')
 
     return prediction_results, unrelaxed_protein
-
-def amber_relax(unrelaxed_protein):
-
-    start = timer()
-    # Relax the prediction, return relaxed protein
-    amber_relaxer = relax.AmberRelaxation(max_iterations=0,tolerance=2.39,
-                                            stiffness=10.0,exclude_residues=[],
-                                            max_outer_iterations=20)      
-    relaxed_protein, _, _ = amber_relaxer.process(prot=unrelaxed_protein)
-
-    end = timer()
-
-    print(f' AMBER relax took {(end - start):.2f} s')
-
-    return relaxed_protein
-

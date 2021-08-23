@@ -1,8 +1,9 @@
 # arg parser module
 import argparse
-import sys
+import os, sys
 import numpy as np
 import subprocess
+script_dir = os.path.dirname(os.path.realpath(__file__))
 
 def get_args():
     ''' Parse input arguments'''
@@ -73,7 +74,7 @@ def get_args():
             '--loss',
             default='dual',
             type=str,
-            help='the loss function used during optimization. Choose from [plddt, ptm, pae, pae_sub_mat, pae_asym, entropy, dual, dual_cyclic, dual_dssp] (default: %(default)s).'
+            help='the loss function used during optimization. Choose from [plddt, ptm, pae, pae_sub_mat, pae_asym, entropy, dual, dual_cyclic] (default: %(default)s).'
             )
 
     # MCMC arguments.
@@ -105,6 +106,7 @@ def get_args():
             '--tolerance',
             default=None,
             action='store',
+            type=float,
             help='the tolerance on the loss sliding window for terminating the MCMC trajectory early (default: %(default)s).'
             )
 
@@ -134,14 +136,6 @@ def get_args():
             )
 
     parser.add_argument(
-            '--amber_relax',
-            default=0,
-            action='store',
-            type=int,
-            help='amber relax pdbs written to disk, 0= do not relax, 1=relax every prediction (default: %(default)s).'
-            )
-
-    parser.add_argument(
             '--output_pae',
             default=False,
             action='store_true',
@@ -149,8 +143,6 @@ def get_args():
             )
 
     args = parser.parse_args()
-
-
 
 
     ########################################
@@ -175,12 +167,10 @@ def get_args():
         print('WARNING: Both user-defined sequence(s) and length(s) were provided. Are you sure of what you are doing? The simulation will continue assuming you wanted to use the provided sequence(s) as seed(s).')
 
     # Add some arguments.
-    args.commit = subprocess.check_output(f'git --git-dir .git rev-parse HEAD', shell=True).decode().strip() # add git hash of current commit.
+    args.commit = subprocess.check_output(f'git --git-dir {script_dir}/../.git rev-parse HEAD', shell=True).decode().strip() # add git hash of current commit.
 
     args.unique_protomers = sorted(set(args.oligo.replace(',','').replace('+','-').replace('-','')))
 
-    # intialize args prot_sequences in case none are given in input
-    args.proto_sequences = None
     if args.seq is not None:
         args.proto_sequences = args.seq.split(',')
 
@@ -207,7 +197,7 @@ def get_args():
                     seq_prob[proto] = {'seq':'', 'prob':''}
 
         args.proto_sequences = [seq_prob[proto]['seq'] for proto in args.unique_protomers]
-        args.position_weights = [seq_prob[proto]['prob'] for proto in args.unique_protomers]
+        args.position_weights = [list(seq_prob[proto]['prob']) for proto in args.unique_protomers]
 
         if args.L is None:
             args.proto_Ls = [len(seq) for seq in args.proto_sequences]
