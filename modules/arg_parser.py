@@ -74,7 +74,7 @@ def get_args():
             '--loss',
             default='dual',
             type=str,
-            help='the loss function used during optimization. Choose from [plddt, ptm, pae, pae_sub_mat, pae_asym, entropy, dual, dual_cyclic] (default: %(default)s).'
+            help='the loss function used during optimization. Choose from [plddt, ptm, pae, pae_sub_mat, pae_asym, entropy, dual, dual_cyclic, dual_dssp] (default: %(default)s).'
             )
 
     # MCMC arguments.
@@ -117,6 +117,14 @@ def get_args():
             action='store',
             type=int,
             help='AF2 model (_ptm) used during prediction. Choose from [1, 2, 3, 4, 5] (default: %(default)s).'
+            )
+
+    parser.add_argument(
+            '--amber_relax',
+            default=0,
+            action='store',
+            type=int,
+            help='amber relax pdbs written to disk, 0= do not relax, 1=relax every prediction (default: %(default)s).'
             )
 
     parser.add_argument(
@@ -171,6 +179,8 @@ def get_args():
 
     args.unique_protomers = sorted(set(args.oligo.replace(',','').replace('+','-').replace('-','')))
 
+    #intialise empty sequences in case none are given
+    args.proto_sequences = None
     if args.seq is not None:
         args.proto_sequences = args.seq.split(',')
 

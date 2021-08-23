@@ -2,6 +2,10 @@
 import numpy as np
 import sys; sys.path.append('/projects/ml/alphafold/alphafold_git/')
 from alphafold.common import protein
+# dssp loss imports
+from Bio.PDB.DSSP import DSSP
+from Bio.PDB.DSSP import dssp_dict_from_pdb_file
+
 
 def get_coord(atom_type, oligo_object):
     '''
@@ -30,6 +34,26 @@ def get_coord(atom_type, oligo_object):
         coord[start_finish[0] + 1 : start_finish[1]+1 , 0] = chain_list[k] # re-assign chains based on chain breaks
 
     return coord
+
+def calculate_dssp_list(pdbfile):
+
+    dssp_tuple = dssp_dict_from_pdb_file(pdbfile, DSSP="/home/lmilles/lm_bin/dssp" )[0]
+
+    dssp_list = []
+    for key in dssp_tuple.keys():
+        dssp_list.append( dssp[key][2] )
+
+    return dssp_list
+
+def calculate_dssp_fractions(dssp_list):
+    N_residues = len(dssp_list)
+    fraction_beta  = float(dssp_list.count("E") ) / float(N_residues)
+    fraction_helix = float(dssp_list.count("H") ) / float(N_residues)
+    fraction_other = float(1.0-fraction_beta-fraction_helix)
+    # print(dssp_list, fraction_beta, fraction_helix, fraction_other)
+
+    return fraction_beta, fraction_helix, fraction_other
+
 
 def compute_loss(loss_type, oligo):
     '''
@@ -175,6 +199,23 @@ def compute_loss(loss_type, oligo):
 
         # Compute the score, which is an equal weighting between plddt, ptm and the geometric term.
         score = 1 - (np.mean(oligo.try_prediction_results['plddt']) / 200) - (oligo.try_prediction_results['ptm'] / 2)  + separation_std
+
+    elif loss_type == "dual_dssp":
+        # NOTE:
+        # This loss jointly optimises ptm and plddt (equal weights).
+        # additionally a loss to enforce a fraction of secondary structure elements (e.g. 80% of fold must be beta sheet) is enforced
+        # IN DEVELOPMENT
+        # write temporary pdbfile as temporary 
+        temp_pdbfile = "tmp.pdb"
+        with open( temp_pdbfile , 'w') as f:
+            f.write( protein.to_pdb(oligo.try_unrelaxed_structure) )
+        
+        dssp_list = calculate_dssp_list(temp_pdbfile)
+        fraction_beta, fraction_helix, fraction_other = calculate_dssp_fractions(dssp_list)
+        print (f" fraction E|H|L: {fraction_beta:2.2f} | {fraction_helix:2.2f} | {fraction_other:2.2f}")
+
+        score = 1 - (np.mean(oligo.try_prediction_results['plddt']) / 200) - (oligo.try_prediction_results['ptm'] / 2)
+
 
 
     # The loss counts positively or negatively to the overall loss depending on whether this oligomer is positively or negatively designed.
