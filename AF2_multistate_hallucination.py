@@ -217,6 +217,7 @@ print(f'Predictions will be performed with AlphaFold2 model_{args.model}_ptm, wi
 print(f'The loss function used during optimisation was set to: {args.loss}.')
 
 # From my rough calculation on 16k random sequences from uniref50 -- should be double-checked.
+# Todo: add option in argparse
 if True: 
     AA_freq = {'A': 0.08792778710242188,
          'C': 0.01490447165931344,
