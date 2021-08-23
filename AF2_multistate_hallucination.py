@@ -297,7 +297,7 @@ for i in range(args.steps):
     try_loss = 0.0
     if i == 0: # do a first pass through the network before mutating anything -- baseline
         for name, oligo in oligomers.items():
-            af2_prediction = predict_structure(oligo, model_runners[name], random_seed=np.random.randint(10)) # run AlphaFold2 prediction
+            af2_prediction = predict_structure(oligo, model_runners[name], random_seed=np.random.randint(10), amber_relax_prediction=args.amber_relax_prediction) # run AlphaFold2 prediction
             oligo.init_prediction(af2_prediction) # assign
             loss = compute_loss(args.loss, oligo) # calculate the loss
             oligo.init_loss(loss) # assign
@@ -316,7 +316,7 @@ for i in range(args.steps):
 
         for name, oligo in oligomers.items():
             oligo.assign_oligo(protomers) # make new oligomers from mutated protomer sequences
-            oligo.assign_prediction(predict_structure(oligo, model_runners[name], random_seed=np.random.randint(10))) # run AlphaFold2 prediction
+            oligo.assign_prediction(predict_structure(oligo, model_runners[name], random_seed=np.random.randint(10)), amber_relax_prediction=args.amber_relax_prediction) # run AlphaFold2 prediction
             loss = compute_loss(args.loss, oligo) # calculate the loss for that oligomer
             oligo.assign_loss(loss) # assign the loss to the object (for tracking)
             try_loss += loss # increment the globabl loss

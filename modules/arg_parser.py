@@ -134,7 +134,7 @@ def get_args():
             )
 
     parser.add_argument(
-            '--amber_relax_pdbs',
+            '--amber_relax_prediction',
             default=0,
             action='store',
             type=int,
