@@ -217,7 +217,8 @@ print(f'Predictions will be performed with AlphaFold2 model_{args.model}_ptm, wi
 print(f'The loss function used during optimisation was set to: {args.loss}.')
 
 # From my rough calculation on 16k random sequences from uniref50 -- should be double-checked.
-AA_freq = {'A': 0.08792778710242188,
+if True: 
+    AA_freq = {'A': 0.08792778710242188,
          'C': 0.01490447165931344,
          'D': 0.05376829211614807,
          'E': 0.06221732055447876,
@@ -237,6 +238,46 @@ AA_freq = {'A': 0.08792778710242188,
          'V': 0.06437948487920657,
          'W': 0.013588957652402187,
          'Y': 0.02837870159741062}
+else:
+    # from aivans aa_comp in previous hallucinations
+    # please double check !!!
+    AA_freq = {
+         'A': 0.07892653, 
+         'R': 0.04979037, 
+         'N': 0.0451488 , 
+         'D': 0.0603382 , 
+         'C': 0.01261332,      
+         'Q': 0.03783883, 
+         'E': 0.06592534, 
+         'G': 0.07122109, 
+         'H': 0.02324815, 
+         'I': 0.05647807,      
+         'L': 0.09311339, 
+         'M': 0.05980368, 
+         'F': 0.02072943, 
+         'P': 0.04145316, 
+         'S': 0.04631926,       
+         'T': 0.06123779, 
+         'W': 0.0547427 , 
+         'Y': 0.01489194, 
+         'V': 0.03705282, 
+         '-': 0.0691271,    
+    }
+    # ivan's natural AA composition
+    # AA_COMP = np.array([0.07892653, 0.04979037, 0.0451488 , 0.0603382 , 0.01261332,
+    #                     0.03783883, 0.06592534, 0.07122109, 0.02324815, 0.05647807,
+    #                     0.09311339, 0.05980368, 0.02072943, 0.04145316, 0.04631926,
+    #                     0.06123779, 0.0547427 , 0.01489194, 0.03705282, 0.0691271])
+    # alpha_1 = list("ARNDCQEGHILKMFPSTWYV-")
+    # states = len(alpha_1)
+    # alpha_3 = ['ALA','ARG','ASN','ASP','CYS','GLN','GLU','GLY','HIS','ILE',
+    #            'LEU','LYS','MET','PHE','PRO','SER','THR','TRP','TYR','VAL','GAP']
+    # # STANDARD MODE BIAS - from /home/davidcj/projects/TrR_for_design_v2/design_round2/
+    # TR_AA_FREQ_STAN = np.array([0.01597168, 0.02502841, 0.02988023, 0.10575225, 0.07307457,
+    #                             0.02020281, 0.12834164, 0.05110587, 0.00535012, 0.09485969,
+    #                             0.06157007, 0.09948422, 0.02655827, 0.01981817, 0.15902614,
+    #                             0.01212519, 0.01049917, 0.00893435, 0.00884693, 0.04357024])
+    # AA_REF = np.log(TR_AA_FREQ_STAN/AA_COMP)
 
 for aa in args.exclude_AA:
     del AA_freq[aa]
