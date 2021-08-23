@@ -134,11 +134,11 @@ def get_args():
             )
 
     parser.add_argument(
-            '--amber_relax_prediction',
+            '--amber_relax',
             default=0,
             action='store',
             type=int,
-            help='amber relax pdbs written to disk (default: %(default)s).'
+            help='amber relax pdbs written to disk, 0= do not relax, 1=relax every prediction (default: %(default)s).'
             )
 
     parser.add_argument(
@@ -149,6 +149,8 @@ def get_args():
             )
 
     args = parser.parse_args()
+
+
 
 
     ########################################
@@ -177,6 +179,8 @@ def get_args():
 
     args.unique_protomers = sorted(set(args.oligo.replace(',','').replace('+','-').replace('-','')))
 
+    # intialize args prot_sequences in case none are given in input
+    args.proto_sequences = None
     if args.seq is not None:
         args.proto_sequences = args.seq.split(',')
 

@@ -56,6 +56,7 @@ import numpy as np
 import copy
 
 sys.path.append('modules/') # import modules
+
 from arg_parser import *
 from seq_mutation import *
 from af2_net import *
@@ -196,7 +197,9 @@ class Oligomer:
 # INITALISATION
 ##################################
 
+# parse args
 args = get_args(); print(args)
+
 
 os.makedirs(f'{args.out}_models', exist_ok=True) # where all the outputs will go.
 
@@ -266,7 +269,7 @@ for o in args.oligo.split(','):
 model_runners = setup_models(args.oligo.split(','), model_id=args.model, recycles=args.recycles, msa_clusters=args.msa_clusters)
 
 # Start score file.
-with open(f'{args.out}_models/{args.out}.out', 'w') as f:
+with open(f'{args.out}_models/{os.path.splitext(os.path.basename(args.out))[0]}.out', 'w') as f:
     print_str = f'# {args}\n'
     print_str += 'step accepted temperature mutations loss plddt ptm pae '
     for oligo in oligomers.keys():
@@ -297,7 +300,7 @@ for i in range(args.steps):
     try_loss = 0.0
     if i == 0: # do a first pass through the network before mutating anything -- baseline
         for name, oligo in oligomers.items():
-            af2_prediction = predict_structure(oligo, model_runners[name], random_seed=np.random.randint(10), amber_relax_prediction=args.amber_relax_prediction) # run AlphaFold2 prediction
+            af2_prediction = predict_structure(oligo, model_runners[name], random_seed=np.random.randint(10),) # run AlphaFold2 prediction
             oligo.init_prediction(af2_prediction) # assign
             loss = compute_loss(args.loss, oligo) # calculate the loss
             oligo.init_loss(loss) # assign
@@ -316,7 +319,9 @@ for i in range(args.steps):
 
         for name, oligo in oligomers.items():
             oligo.assign_oligo(protomers) # make new oligomers from mutated protomer sequences
-            oligo.assign_prediction(predict_structure(oligo, model_runners[name], random_seed=np.random.randint(10)), amber_relax_prediction=args.amber_relax_prediction) # run AlphaFold2 prediction
+            oligo.assign_prediction(predict_structure(oligo, model_runners[name], 
+                                                        random_seed=np.random.randint(10) ,  ) 
+                                                        )  # run AlphaFold2 prediction
             loss = compute_loss(args.loss, oligo) # calculate the loss for that oligomer
             oligo.assign_loss(loss) # assign the loss to the object (for tracking)
             try_loss += loss # increment the globabl loss
@@ -376,8 +381,11 @@ for i in range(args.steps):
 
         for name, oligo in oligomers.items():
 
-            with open(f'{args.out}_models/{args.out}_{oligo.name}_step_{str(i).zfill(4)}.pdb', 'w') as f:
-                f.write(protein.to_pdb(oligo.current_unrelaxed_structure))
+            with open(f'{args.out}_models/{os.path.splitext(os.path.basename(args.out))[0]}_{oligo.name}_step_{str(i).zfill(4)}.pdb', 'w') as f:
+                if args.amber_relax == 0 :
+                    f.write(protein.to_pdb( oligo.current_unrelaxed_structure) )
+                elif args.amber_relax == 1 :
+                    f.write( amber_relax(oligo.current_unrelaxed_structure) )
                 f.write(f'plddt_array {",".join(oligo.current_prediction_results["plddt"].astype(str))}\n')
                 f.write(f'plddt {np.mean(oligo.current_prediction_results["plddt"])}\n')
                 f.write(f'ptm {oligo.current_prediction_results["ptm"]}\n')
@@ -406,7 +414,7 @@ for i in range(args.steps):
         score_string += f'{oligo.try_prediction_results["ptm"]} '
         score_string += f'{np.mean(oligo.try_prediction_results["predicted_aligned_error"])} '
 
-    with open(f'{args.out}_models/{args.out}.out', 'a') as f:
+    with open(f'{args.out}_models/{os.path.splitext(os.path.basename(args.out))[0]}.out', 'a') as f:
         f.write(score_string + '\n')
 
     rolling_window.append(current_loss)
