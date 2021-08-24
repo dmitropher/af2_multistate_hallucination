@@ -435,6 +435,7 @@ for i in range(args.steps):
                     f.write(f'ptm {oligo.current_prediction_results["ptm"]}\n')
                     f.write(f'pae {np.mean(oligo.current_prediction_results["predicted_aligned_error"])}\n')
                     f.write(f'loss {oligo.current_loss}\n')
+                    f.write(f'# {str(args)}\n')
 
                 # Optionally save the PAE matrix
                 if args.output_pae == True:

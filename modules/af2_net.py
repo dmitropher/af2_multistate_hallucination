@@ -20,7 +20,7 @@ def setup_models(oligo_names, model_id=4, recycles=1, msa_clusters=1):
     mod = f'model_{model_id}_ptm'  # _ptm series of models necessary for returning pTM and PAE.
     model_config = config.model_config(mod)
     model_config.model.num_recycle = recycles # AF2 default is 3. Effect on computing time is linear.
-    model_config.data.common.num_recycle = recycles # AF2 defalut is 3. Effect on computing time is linear.
+    model_config.data.common.num_recycle = recycles # AF2 default is 3. Effect on computing time is linear.
     model_config.data.common.max_extra_msa = msa_clusters  # AF2 default is 5120. Turning off is about 8x faster.
     model_config.data.eval.max_msa_clusters = msa_clusters # AF2 default is 512. Turning off is about 8x faster.
     model_config.data.eval.num_ensemble = 1
