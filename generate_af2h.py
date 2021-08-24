@@ -1,5 +1,5 @@
 #!/software/conda/envs/pyrosetta/bin/python
-# Get resid (indexed at zero) of surface residues and print these to a file for use with AF2_MCMC_2state.py
+# Script to generate .af2h resfiles from pdb structures based on layer selection
 
 import pyrosetta
 from pyrosetta.rosetta.core.select.residue_selector import LayerSelector
@@ -7,7 +7,7 @@ pyrosetta.init()
 import numpy as np
 import sys
 
-def layer_selector_mover(layer, core_cutoff=3.0, surface_cutoff=2.0): # code from Hugh
+def layer_selector_mover(layer, core_cutoff=3.9, surface_cutoff=3.0): # code from Hugh
 
     """
     Set up a PyRosetta Mover that can be used to select a specific layer using the
@@ -45,19 +45,27 @@ def layer_selector_mover(layer, core_cutoff=3.0, surface_cutoff=2.0): # code fro
         pick_core=pick_core, pick_boundary=pick_boundary,
         pick_surface=pick_surface
     )
-    
+
     return select_layer
 
-surface_selector = layer_selector_mover('surface')
 
-pdbs = sys.argv[1:]
+for pdb in  sys.argv[1:]:
 
-for pdb in pdbs:
-    
     pose = pyrosetta.pose_from_pdb(pdb)
-    surf_pos = np.array(np.arange(0, len(pose.sequence()))[np.array(surface_selector.apply(pose))])
-    surf_pos
-    
-    with open(pdb.replace('.pdb', '.res'), 'w') as f:
-        f.write(pose.sequence() + '\n')
-        f.write(' '.join(surf_pos.astype(str)))
+    core_selector = layer_selector_mover('core')
+    boundary_selector = layer_selector_mover('boundary')
+    surface_selector = layer_selector_mover('surface')
+
+    core_pos = np.array(core_selector.apply(pose), dtype=int)
+    boundary_pos = np.array(boundary_selector.apply(pose), dtype=int)
+    surface_pos = np.array(surface_selector.apply(pose), dtype=int)
+
+    mask = surface_pos + boundary_pos # select both surface and boundary residues
+
+    id2chain = {1:'A', 2:'B'}
+    with open(pdb.replace('.pdb','.af2h'), 'w') as f:
+        for i, ch in id2chain.items():
+            chain_seq = pose.chain_sequence(i)
+            f.write('>' + ch + '\n')
+            f.write(chain_seq + '\n')
+            f.write(','.join(mask[pose.chain_begin(i)-1:pose.chain_end(i)].astype(str)) + '\n')

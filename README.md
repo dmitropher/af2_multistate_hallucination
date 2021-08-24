@@ -2,7 +2,8 @@ Multi-state design using AlphaFold2 MCMC hallucination.
 ====================================================================================
 Basile Wicky <basile.wicky@gmail.com>
 Started: 2021-08-11
-Re-factored and merged with code from Lukas Milles <lmilles@uw.edu>: 2021-08-20 
+
+Re-factored and merged with code from Lukas Milles <lmilles@uw.edu>: 2021-08-23
 
 Summary:
 --------
