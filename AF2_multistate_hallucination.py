@@ -324,7 +324,7 @@ for i in range(args.steps):
                 oligo.assign_prediction(predict_structure(oligo, model_runners[name], random_seed=np.random.randint(10))) # run AlphaFold2 prediction
                 loss = compute_loss(args.loss, oligo) # calculate the loss for that oligomer
                 oligo.assign_loss(loss) # assign the loss to the object (for tracking)
-                try_loss += loss # increment the globabl loss
+                try_loss += loss # increment the global loss
 
         try_loss /= len(oligomers) # take the mean of the individual oligomer losses (forces scaling between 0 and 1)
 
@@ -382,12 +382,12 @@ for i in range(args.steps):
             for name, oligo in oligomers.items():
 
                 with open(f'{args.out}_models/{os.path.splitext(os.path.basename(args.out))[0]}_{oligo.name}_step_{str(i).zfill(4)}.pdb', 'w') as f:
+                    # write pdb
                     if args.amber_relax == 0 :
                         f.write(protein.to_pdb( oligo.current_unrelaxed_structure) )
                     elif args.amber_relax == 1 :
                         f.write( amber_relax(oligo.current_unrelaxed_structure) )
 
-                    f.write(protein.to_pdb(oligo.current_unrelaxed_structure))
                     f.write(f'plddt_array {",".join(oligo.current_prediction_results["plddt"].astype(str))}\n')
                     f.write(f'plddt {np.mean(oligo.current_prediction_results["plddt"])}\n')
                     f.write(f'ptm {oligo.current_prediction_results["ptm"]}\n')
