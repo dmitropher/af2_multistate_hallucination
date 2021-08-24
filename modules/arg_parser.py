@@ -1,6 +1,6 @@
 # arg parser module
 import argparse
-import os, sys
+import os, sys , datetime
 import numpy as np
 import subprocess
 script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -150,7 +150,23 @@ def get_args():
             help='output the PAE (predicted alignment error) matrix for each accepted step of the MCMC trajectory (default: %(default)s).'
             )
 
+    parser.add_argument(
+            '--timestamp',
+            default=False,
+            action='store_true',
+            help='timestamp outputdir and every pdb written to disk with: %%Y%%m%%d_%%H%%M%%S_%%f (default: %(default)s).'
+            )
+
+
     args = parser.parse_args()
+
+    ########################################
+    # ARGUMENT MODIFICATIONS BASED ON INPUT
+    ########################################
+
+    if args.timestamp == True:
+        date_time_str = datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+        args.out = args.out + "_" + date_time_str
 
 
     ########################################
