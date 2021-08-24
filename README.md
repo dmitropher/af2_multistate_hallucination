@@ -11,12 +11,12 @@ Summary:
 - Oligomers with arbitrary number of subunits can be designed.
 - Multistate design (either positive or negative) can be specified.
 - MCMC trajectories can either be seeded with input sequence(s), or started randomly using AA frequency adjustment.
-- At each step, position(s) are chosen for mutation based on different options (see modules/seq_mutation.py for details).
+- At each step, position(s) are chosen for mutation based on different options (see `modules/seq_mutation.py` for details).
 - A 'resfile' (`.af2h` extension) can be employed to specify designable positions and associated probabilities of mutation.
 - The oligomeric state (number of subunits) for each oligomer (state) can be specified.
 - Specific amino acids can be exluded.
 - MCMC paramters (initial temperature, annealing half-life, steps, tolerance) can be specified.
-- Currently implemented loss functions are (see modules/losses.py for details):
+- Currently implemented loss functions are (see `modules/losses.py` for details):
   - `plddt`: plDDT seem to have trouble converging to complex formation.
   - `ptm`: pTM tends to 'melt' input structures.
   - `pae`: similar to result as ptm?
@@ -43,7 +43,7 @@ Outputs:
 - PDB structures for each accepted move of the MCMC trajectory.
 - A file (.out) containing the scores at each step of the MCMC trajectory (accepted and rejected).
 
-TODO:
+To-do:
 ------
 - A CCE-based loss to enable constrained hallucination based on an input structure?
 - RMSD-based or TMscore-based loss to a motif/structure?
