@@ -230,10 +230,9 @@ def compute_loss(loss_type, oligo, args):
         
         p = subprocess.Popen(f'/home/lmilles/lm_bin/TMalign {args.template} {temp_pdbfile} | grep -E "RMSD|TM-score=" ', stdout=subprocess.PIPE, shell=True)
         output , __ = p.communicate()
-        print(output)
         tm_RMSD  = float(str(output)[:-3].split("RMSD=")[-1].split(",")[0] )
         tm_score = float(str(output)[:-3].split("TM-score=")[-1].split("(if")[0] )
-        print("   " , tm_RMSD, tm_score)
+        print("   tm_RMSD, tmscore" , tm_RMSD, tm_score)
 
 
         score = 1. - (np.mean(oligo.try_prediction_results['plddt']) / 300.) - (oligo.try_prediction_results['ptm'] / 3.) - (tm_score / 3.)
