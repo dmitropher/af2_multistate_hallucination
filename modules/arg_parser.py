@@ -74,7 +74,8 @@ def get_args():
             '--loss',
             default='dual',
             type=str,
-            help='the loss function used during optimization. Choose from [plddt, ptm, pae, pae_sub_mat, pae_asym, entropy, dual, dual_cyclic, dual_dssp] (default: %(default)s).'
+            help='the loss function used during optimization. Choose from \
+            [plddt, ptm, pae, pae_sub_mat, pae_asym, entropy, dual, dual_cyclic, dual_dssp, dual_tmalign(requires a --template)] (default: %(default)s).'
             )
 
     # MCMC arguments.
@@ -155,6 +156,13 @@ def get_args():
             default=False,
             action='store_true',
             help='timestamp outputdir and every pdb written to disk with: %%Y%%m%%d_%%H%%M%%S_%%f (default: %(default)s).'
+            )
+
+    parser.add_argument(
+            '--template',
+            default=None,
+            type=str,
+            help='template pdb to used with special loss functions (default: %(default)s).'
             )
 
 

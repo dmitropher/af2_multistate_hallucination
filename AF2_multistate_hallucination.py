@@ -304,7 +304,7 @@ for i in range(args.steps):
             for name, oligo in oligomers.items():
                 af2_prediction = predict_structure(oligo, model_runners[name], random_seed=np.random.randint(10)) # run AlphaFold2 prediction
                 oligo.init_prediction(af2_prediction) # assign
-                loss = compute_loss(args.loss, oligo) # calculate the loss
+                loss = compute_loss(args.loss, oligo, args) # calculate the loss
                 oligo.init_loss(loss) # assign
                 try_loss += loss # increment global loss
 
@@ -322,7 +322,7 @@ for i in range(args.steps):
             for name, oligo in oligomers.items():
                 oligo.assign_oligo(protomers) # make new oligomers from mutated protomer sequences
                 oligo.assign_prediction(predict_structure(oligo, model_runners[name], random_seed=np.random.randint(10))) # run AlphaFold2 prediction
-                loss = compute_loss(args.loss, oligo) # calculate the loss for that oligomer
+                loss = compute_loss(args.loss, oligo, args) # calculate the loss for that oligomer
                 oligo.assign_loss(loss) # assign the loss to the object (for tracking)
                 try_loss += loss # increment the global loss
 
@@ -401,7 +401,7 @@ for i in range(args.steps):
 
 
         # Save scores for the step (even if rejected).
-        score_string = f'{i} '
+        score_string = f'{i:04d} '
         score_string += f'{accepted} '
         score_string += f'{T} '
         score_string += f'{n_mutations} '

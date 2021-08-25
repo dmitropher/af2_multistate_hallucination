@@ -5,6 +5,8 @@ from alphafold.common import protein
 # dssp loss imports
 from Bio.PDB.DSSP import DSSP
 from Bio.PDB.DSSP import dssp_dict_from_pdb_file
+# to run tmalign
+import subprocess
 
 
 def get_coord(atom_type, oligo_object):
@@ -55,7 +57,7 @@ def calculate_dssp_fractions(dssp_list):
     return fraction_beta, fraction_helix, fraction_other
 
 
-def compute_loss(loss_type, oligo):
+def compute_loss(loss_type, oligo, args):
     '''
     Compute the loss of a single oligomer.
     loss_type: string defining which loss to use.
@@ -67,7 +69,7 @@ def compute_loss(loss_type, oligo):
         # Using this loss will optimise plddt (predicted lDDT) for the sequence(s).
         # Early benchmarks suggest that this is not appropriate for forcing the emergence of complexes.
         # Optimised sequences tend to be folded (or have good secondary structures) without forming inter-chain contacts.
-        score = 1 - (np.mean(oligo.try_prediction_results['plddt']) / 100)
+        score = 1. - (np.mean(oligo.try_prediction_results['plddt']) / 100)
 
 
     elif loss_type == 'ptm':
@@ -75,7 +77,7 @@ def compute_loss(loss_type, oligo):
         # Using this loss will optimise ptm (predicted TM-score) for the sequence(s).
         # Early benchmarks suggest that while it does force the apparition of inter-chain contacts,
         # it might be at the expense of intra-chain contacts and therefore folded protomer structures.
-        score = 1 - np.mean(oligo.try_prediction_results['ptm'])
+        score = 1. - np.mean(oligo.try_prediction_results['ptm'])
 
 
     elif loss_type == 'pae':
@@ -107,7 +109,7 @@ def compute_loss(loss_type, oligo):
         # This loss jointly optimises ptm and plddt (equal weights).
         # It attemps to combine the best of both worlds -- getting folded structures that are in contact.
         # This loss is currently recommended unless cyclic geometries are desired (tends to generate linear oligomers).
-        score = 1 - (np.mean(oligo.try_prediction_results['plddt']) / 200) - (oligo.try_prediction_results['ptm'] / 2)
+        score = 1. - (np.mean(oligo.try_prediction_results['plddt']) / 200) - (oligo.try_prediction_results['ptm'] / 2)
 
 
     elif loss_type == 'pae_sub_mat':
@@ -198,7 +200,7 @@ def compute_loss(loss_type, oligo):
         separation_std = np.std(proto_dist) # the standard deviation of the distance separations.
 
         # Compute the score, which is an equal weighting between plddt, ptm and the geometric term.
-        score = 1 - (np.mean(oligo.try_prediction_results['plddt']) / 200) - (oligo.try_prediction_results['ptm'] / 2)  + separation_std
+        score = 1. - (np.mean(oligo.try_prediction_results['plddt']) / 200) - (oligo.try_prediction_results['ptm'] / 2)  + separation_std
 
     elif loss_type == "dual_dssp":
         # NOTE:
@@ -206,7 +208,7 @@ def compute_loss(loss_type, oligo):
         # additionally a loss to enforce a fraction of secondary structure elements (e.g. 80% of fold must be beta sheet) is enforced
         # IN DEVELOPMENT
         # write temporary pdbfile as temporary 
-        temp_pdbfile = "tmp.pdb"
+        temp_pdbfile = f'{args.out}_models/tmp.pdb'
         with open( temp_pdbfile , 'w') as f:
             f.write( protein.to_pdb(oligo.try_unrelaxed_structure) )
         
@@ -214,8 +216,27 @@ def compute_loss(loss_type, oligo):
         fraction_beta, fraction_helix, fraction_other = calculate_dssp_fractions(dssp_list)
         print (f" fraction E|H|L: {fraction_beta:2.2f} | {fraction_helix:2.2f} | {fraction_other:2.2f}")
 
-        score = 1 - (np.mean(oligo.try_prediction_results['plddt']) / 200) - (oligo.try_prediction_results['ptm'] / 2)
+        score = 1. - (np.mean(oligo.try_prediction_results['plddt']) / 200) - (oligo.try_prediction_results['ptm'] / 2)
 
+    elif loss_type == "dual_tmalign":
+        # NOTE:
+        # This loss jointly optimises ptm and plddt and tmscore against a template (equal weights).
+        # a loss to enforce tmscore against a given structure
+        # IN DEVELOPMENT
+        # write temporary pdbfile as temporary 
+        temp_pdbfile = f'{args.out}_models/tmp.pdb'
+        with open( temp_pdbfile , 'w') as f:
+            f.write( protein.to_pdb(oligo.try_unrelaxed_structure) )
+        
+        p = subprocess.Popen(f'/home/lmilles/lm_bin/TMalign {args.template} {temp_pdbfile} | grep -E "RMSD|TM-score=" ', stdout=subprocess.PIPE, shell=True)
+        output , __ = p.communicate()
+        print(output)
+        tm_RMSD  = float(str(output)[:-3].split("RMSD=")[-1].split(",")[0] )
+        tm_score = float(str(output)[:-3].split("TM-score=")[-1].split("(if")[0] )
+        print("   " , tm_RMSD, tm_score)
+
+
+        score = 1. - (np.mean(oligo.try_prediction_results['plddt']) / 300.) - (oligo.try_prediction_results['ptm'] / 3.) - (tm_score / 3.)
 
 
     # The loss counts positively or negatively to the overall loss depending on whether this oligomer is positively or negatively designed.
