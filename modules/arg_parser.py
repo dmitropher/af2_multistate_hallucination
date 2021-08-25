@@ -254,7 +254,7 @@ def get_args():
              print('ERROR: the number of unique protomers and the number of specified sequences must match. System exiting...')
              sys.exit()
 
-    if args.loss is "dual_tmalign" and args.template is None:
+    if "_tmalign" in args.loss and args.template is None:
         print('ERROR: tmalign loss require a --template [PDBFILE]')
         sys.exit()
 
