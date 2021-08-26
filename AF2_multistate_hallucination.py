@@ -269,9 +269,9 @@ model_runners = setup_models(args.oligo.split(','), model_id=args.model, recycle
 # Start score file.
 with open(f'{args.out}_models/{os.path.splitext(os.path.basename(args.out))[0]}.out', 'w') as f:
     print_str = f'# {args}\n'
-    print_str += 'step accepted temperature mutations loss plddt ptm pae '
+    print_str += 'step accepted temperature mutations loss plddt ptm pae'
     for oligo in oligomers.keys():
-        print_str += f'sequence_{oligo} loss_{oligo} plddt_{oligo} ptm_{oligo} pae_{oligo}'
+        print_str += f' sequence_{oligo} loss_{oligo} plddt_{oligo} ptm_{oligo} pae_{oligo}'
     print_str += '\n'
     f.write(print_str)
 
@@ -401,6 +401,7 @@ for i in range(args.steps):
 
 
         # Save scores for the step (even if rejected).
+        # step accepted temperature mutations loss plddt ptm pae '
         score_string = f'{i:04d} '
         score_string += f'{accepted} '
         score_string += f'{T} '
