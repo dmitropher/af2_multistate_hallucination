@@ -78,6 +78,13 @@ def get_args():
             [plddt, ptm, pae, pae_sub_mat, pae_asym, entropy, dual, dual_cyclic, dual_dssp, dual_tmalign(requires a --template)] (default: %(default)s).'
             )
 
+    parser.add_argument(
+            '--loss_weights',
+            default=None,
+            type=str,
+            help='if more than one loss is used, specify relative weights as comma separated values e.g. 2,1 if not specified all losses are weighed equally  (default: %(default)s).'
+            )
+
     # MCMC arguments.
     parser.add_argument(
             '--T_init',
@@ -203,6 +210,43 @@ def get_args():
 
     args.unique_protomers = sorted(set(args.oligo.replace(',','').replace('+','-').replace('-','')))
 
+    ########################################
+    # LOSSSES 
+    ########################################
+    # all losses stored in dictionary, 
+    # if no parameters necessary dict. entry is empty list
+    losses =  {}
+    for curr_loss_str in args.loss.strip(',').split(',')
+        loss_parameters = []
+
+        if '|'  in curr_loss_str:
+            loss_name , loss_arguments = curr_loss_str.split('|')[0]
+            
+            for curr_loss_param in loss_arguments.strip(';').split(';'):
+                if "[" in curr_loss_param:
+                    print(" loss configfile detected, not IMPLEMENTED YET")
+                    sys.exit()
+                else:
+                    #assuming all parameters are number
+                    loss_parameters.append( float(curr_loss_param) )
+        else:
+            loss_name = str(curr_loss_str)
+
+    losses[loss_name] = loss_parameters
+
+    #replace args.loss string with new dictionary
+    args.loss = losses
+
+    #loss weights only relevant if more than one loss declared
+    if args.loss_weights != None:
+        # split relative weight losses from input string, as list
+        args.loss_weights = [ float(i) for i in args.loss.strip(',').split(',') ]
+
+        assert len(args.loss_weights) == len(args.loss)
+
+    ########################################
+    # SEQUENCES 
+    ########################################
     #intialise empty sequences in case none are given
     args.proto_sequences = None
     if args.seq is not None:
@@ -230,7 +274,7 @@ def get_args():
                 if proto not in list(seq_prob.keys()):
                     seq_prob[proto] = {'seq':'', 'prob':''}
 
-        args.proto_sequences = [seq_prob[proto]['seq'] for proto in args.unique_protomers]
+        args.proto_sequences  = [seq_prob[proto]['seq'] for proto in args.unique_protomers]
         args.position_weights = [list(seq_prob[proto]['prob']) for proto in args.unique_protomers]
 
         if args.L is None:
