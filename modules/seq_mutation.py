@@ -84,7 +84,7 @@ def mutate_resfile(n_mutations, proto_object, aa_freq):
     # if selecting worst residues based on plddt, extract stacked pLDDT array across all
     # protomers in the various oligomers
     if True:
-        quantile = 
+        quantile = 0.33
         unique_protomers = list(proto_object.init_sequences.keys())
         # For each protomer, get the plddt arrays of its different states/oligomers.
         stacked_plddts = {proto:[] for proto in unique_protomers}

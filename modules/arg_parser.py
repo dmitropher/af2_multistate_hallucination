@@ -221,7 +221,7 @@ def get_args():
     # all losses stored in dictionary, 
     # if no parameters necessary dict. entry is empty list
     losses =  {}
-    for curr_loss_str in args.loss.strip(',').split(',')
+    for curr_loss_str in args.loss.strip(',').split(',') :
         loss_parameters = []
 
         if '|'  in curr_loss_str:
@@ -250,11 +250,8 @@ def get_args():
         assert len(args.loss_weights) == len(args.loss)
 
     ########################################
-    # UPDATE / MUTATIONS 
-    ########################################
-
-    ########################################
     # SEQUENCES 
+    # process before reading in the update args of .af2h files
     ########################################
     #intialise empty sequences in case none are given
     args.proto_sequences = None
@@ -271,6 +268,7 @@ def get_args():
     elif '.af2h'  in args.update:
         # Parse .af2h file -- should be fasta, with an extra line after the sequence.
         # The line after the sequence should be a comma-separated list of values (of the same length as the sequence) that represents the probability of mutating each position.
+        print(" found .af2 ", args.update.split('|')[0])
         with open(args.update.split('|')[0] , 'r') as f:
             lines = list(line for line in (l.strip() for l in f) if line) # strip empty lines.
             seq_prob = {}
@@ -286,15 +284,22 @@ def get_args():
         args.proto_sequences  = [seq_prob[proto]['seq'] for proto in args.unique_protomers]
         args.position_weights = [list(seq_prob[proto]['prob']) for proto in args.unique_protomers]
 
-        if args.L is None:
-            args.proto_Ls = [len(seq) for seq in args.proto_sequences]
-
-        else:
-            args.proto_Ls = [int(length) if length!='' else 0 for length in args.L.split(',')]
-
+    
+    if args.L is None:
+        args.proto_Ls = [len(seq) for seq in args.proto_sequences]
 
     else:
-        args.proto_Ls = np.array(args.L.split(','), dtype=int)
+        args.proto_Ls = [int(length) if length!='' else 0 for length in args.L.split(',')]
+
+    ########################################
+    # UPDATE / MUTATIONS 
+    ########################################
+    # reading in additional arguments for updates, currently just option for 
+    # quantile to mutate when plddt or .af2h specified
+    if '|' in args.update:
+        # additional arguments in args.update
+        args.update , update_params = curr_loss_str.split('|')
+        args.update_params = float(update_params)
 
     # Additional Errors.
     if args.seq is None:
