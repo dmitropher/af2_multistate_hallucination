@@ -170,7 +170,7 @@ if args.tolerance is not None:
     print(f'A tolerance setting of {args.tolerance} was set, which might terminate the MCMC trajectory early.')
 print(f'The choice of position to mutate at each step will be based on {args.update}.')
 print(f'Predictions will be performed with AlphaFold2 model_{args.model}_ptm, with recyling set to {args.recycles}, and {args.msa_clusters} MSA cluster(s).')
-print(f'The loss function used during optimisation was set to: {args.loss}.')
+print(f'The loss function used during optimisation was set to: {args.loss}. with loss weights {args.loss_weights}.')
 
 # From my rough calculation on 16k random sequences from uniref50 -- should be double-checked.
 # Todo: add option in argparse
@@ -304,7 +304,7 @@ for i in range(args.steps):
             for name, oligo in oligomers.items():
                 af2_prediction = predict_structure(oligo, model_runners[name], random_seed=np.random.randint(10)) # run AlphaFold2 prediction
                 oligo.init_prediction(af2_prediction) # assign
-                loss = compute_loss(args.loss, oligo, args) # calculate the loss
+                loss = compute_loss(args.loss, oligo, args, args.loss_weights) # calculate the loss
                 oligo.init_loss(loss) # assign
                 try_loss += loss # increment global loss
 
@@ -322,7 +322,7 @@ for i in range(args.steps):
             for name, oligo in oligomers.items():
                 oligo.assign_oligo(protomers) # make new oligomers from mutated protomer sequences
                 oligo.assign_prediction(predict_structure(oligo, model_runners[name], random_seed=np.random.randint(10))) # run AlphaFold2 prediction
-                loss = compute_loss(args.loss, oligo, args) # calculate the loss for that oligomer
+                loss = compute_loss(args.loss, oligo, args, args.loss_weights) # calculate the loss for that oligomer
                 oligo.assign_loss(loss) # assign the loss to the object (for tracking)
                 try_loss += loss # increment the global loss
 
@@ -334,16 +334,16 @@ for i in range(args.steps):
         if delta < 0:
             accepted = True
 
-            print(f'Step {i}: change accepted\n>>LOSS {current_loss} --> {try_loss}')
+            print(f'Step {i:04d}: change accepted\n>>LOSS {current_loss:2.4f} --> {try_loss:2.4f}')
 
             current_loss = float(try_loss) # accept loss change
             protomers.update_mutations() # accept sequence changes
 
             for name, oligo in oligomers.items():
-                print(f' >{name} loss {oligo.current_loss} --> {oligo.try_loss}')
-                print(f' >{name} plddt {np.mean(oligo.current_prediction_results["plddt"])} --> {np.mean(oligo.try_prediction_results["plddt"])}')
-                print(f' >{name} ptm {oligo.current_prediction_results["ptm"]} --> {oligo.try_prediction_results["ptm"]}')
-                print(f' >{name} pae {np.mean(oligo.current_prediction_results["predicted_aligned_error"])} --> {np.mean(oligo.try_prediction_results["predicted_aligned_error"])}')
+                print(f' >{name} loss  {oligo.current_loss:2.3f} --> {oligo.try_loss:2.3f}')
+                print(f' >{name} plddt {np.mean(oligo.current_prediction_results["plddt"]):2.3f} --> {np.mean(oligo.try_prediction_results["plddt"]):2.3f}')
+                print(f' >{name} ptm   {oligo.current_prediction_results["ptm"]:2.3f} --> {oligo.try_prediction_results["ptm"]:2.3f}')
+                print(f' >{name} pae   {np.mean(oligo.current_prediction_results["predicted_aligned_error"]):2.3f} --> {np.mean(oligo.try_prediction_results["predicted_aligned_error"]):2.3f}')
                 print('-' * 70)
                 oligo.update_oligo() # accept sequence changes
                 oligo.update_prediction() # accept score/structure changes
@@ -355,17 +355,17 @@ for i in range(args.steps):
             if np.random.uniform(0, 1) < np.exp( -delta / T):
                 accepted = True
 
-                print(f'Step {i}: change accepted despite not improving the loss\n>>LOSS {current_loss} --> {try_loss}')
+                print(f'Step {i:04d}: change accepted despite not improving the loss\n>>LOSS {current_loss} --> {try_loss}')
 
                 current_loss = float(try_loss)
                 protomers.update_mutations() # accept sequence changes
 
                 for name, oligo in oligomers.items():
-                    print(f' >{name} loss {oligo.current_loss} --> {oligo.try_loss}')
-                    print(f' >{name} plddt {np.mean(oligo.current_prediction_results["plddt"])} --> {np.mean(oligo.try_prediction_results["plddt"])}')
-                    print(f' >{name} ptm {oligo.current_prediction_results["ptm"]} --> {oligo.try_prediction_results["ptm"]}')
-                    print(f' >{name} pae {np.mean(oligo.current_prediction_results["predicted_aligned_error"])} --> {np.mean(oligo.try_prediction_results["predicted_aligned_error"])}')
-                    print('-' * 70)
+                    print(f' >{name} loss  {oligo.current_loss:2.3f} --> {oligo.try_loss:2.3f}')
+                    print(f' >{name} plddt {np.mean(oligo.current_prediction_results["plddt"]):2.3f} --> {np.mean(oligo.try_prediction_results["plddt"]):2.3f}')
+                    print(f' >{name} ptm   {oligo.current_prediction_results["ptm"]:2.3f} --> {oligo.try_prediction_results["ptm"]:2.3f}')
+                    print(f' >{name} pae   {np.mean(oligo.current_prediction_results["predicted_aligned_error"]):2.3f} --> {np.mean(oligo.try_prediction_results["predicted_aligned_error"]):2.3f}')
+                    print('-' * 80)
                     oligo.update_oligo() # accept sequence changes
                     oligo.update_prediction() # accept score/structure changes
                     oligo.update_loss() # accept loss change

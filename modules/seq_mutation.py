@@ -83,17 +83,28 @@ def mutate_resfile(n_mutations, proto_object, aa_freq):
 
     # if selecting worst residues based on plddt, extract stacked pLDDT array across all
     # protomers in the various oligomers
-    if True:
+    if False:
         quantile = 0.33
         unique_protomers = list(proto_object.init_sequences.keys())
         # For each protomer, get the plddt arrays of its different states/oligomers.
         stacked_plddts = {proto:[] for proto in unique_protomers}
+        for oligo in oligo_dict.values():
+
+            prev = 0
+            ch_ranges = []
+            for L in oligo.chain_Ls:
+                Lcorr = prev + L
+                ch_ranges.append([prev, Lcorr])
+                prev = Lcorr
+
+            for n, proto in enumerate(oligo.subunits):
+                stacked_plddts[proto].append(oligo.current_prediction_results['plddt'][ch_ranges[n][0]:ch_ranges[n][1]])
 
 
     mutated_proto_sequences = {}
     for proto, seq in proto_object.current_sequences.items():
 
-        if True:
+        if False:
             # position weights is a np array
             # make position weights 1.0 if non-zero for this protomer
             allowed_positions = np.nonzero( np.ceil( proto_object.position_weights[proto] ) )

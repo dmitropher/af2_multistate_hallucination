@@ -101,6 +101,8 @@ def predict_structure(oligo_object,
     prediction_results = model_runner.predict(processed_feature_dict)
     unrelaxed_protein = protein.from_prediction(processed_feature_dict, prediction_results)
     end = timer()
+    # scale pLDDT to be between 0 and 1
+    prediction_results['plddt'] = prediction_results['plddt'] / 100.0
 
     print(f'{oligo_object.name} prediction took {(end - start):.2f} s')
 

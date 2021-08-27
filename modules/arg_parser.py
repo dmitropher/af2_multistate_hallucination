@@ -218,9 +218,11 @@ def get_args():
     ########################################
     # LOSSSES 
     ########################################
-    # all losses stored in dictionary, 
-    # if no parameters necessary dict. entry is empty list
-    losses =  {}
+    # all losses stored in list of lists [ [ loss_name, [loss_param0, loss_param1] ], ...] 
+    # losses processed in order 
+    # if no parameters necessary list entry is empty list
+    losses =  []
+    print(args.loss)
     for curr_loss_str in args.loss.strip(',').split(',') :
         loss_parameters = []
 
@@ -237,17 +239,36 @@ def get_args():
         else:
             loss_name = str(curr_loss_str)
 
-    losses[loss_name] = loss_parameters
+        losses.append([loss_name, loss_parameters])
 
     #replace args.loss string with new dictionary
     args.loss = losses
 
     #loss weights only relevant if more than one loss declared
     if args.loss_weights != None:
-        # split relative weight losses from input string, as list
-        args.loss_weights = [ float(i) for i in args.loss.strip(',').split(',') ]
+        # split relative weight for losses from input string, 
+        # update as list
+        loss_weights = []
+        for curr_loss_weight in args.loss_weights.strip(',').split(',') :
+            if "-" in curr_loss_weight :
+                # loss is ramped over course of run
+                print(" loss weight ramping, NOT IMPLMENTED YET")
+                sys.exit()
+                loss_weights.append( [ float(i) for i in curr_loss_weight.split("-") ] )
+                pass 
+            else:
+                #loss is constant over course of run (ramped to idential values)
+                # loss_weights.append( [ float(curr_loss), float(curr_loss) ] )
+                loss_weights.append( float(curr_loss_weight) )
+
+
+        args.loss_weights = loss_weights
 
         assert len(args.loss_weights) == len(args.loss)
+    else: 
+        # no loss weights declared, all losses weighed equally
+        args.loss_weights = [1.0] * len(args.loss) #processed list of losses
+
 
     ########################################
     # SEQUENCES 
