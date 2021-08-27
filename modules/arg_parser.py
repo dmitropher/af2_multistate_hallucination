@@ -67,7 +67,9 @@ def get_args():
             default='random',
             action='store',
             type=str,
-            help='how to update the sequence at each step. Choose from [random, plddt, FILE.af2h]. FILE.af2h needs to be a file specifying the probability of mutation at each site (default: %(default)s).'
+            help='how to update the sequence at each step. Choose from [random, plddt|quantile, FILE.af2h|quantile]. \
+            FILE.af2h needs to be a file specifying the probability of mutation at each site\
+            optional arguments can be given with | e.g. plddt|0.25 will mutate only 25%% lowest plddt pos. (default: %(default)s).'
             )
 
     parser.add_argument(
@@ -75,7 +77,10 @@ def get_args():
             default='dual',
             type=str,
             help='the loss function used during optimization. Choose from \
-            [plddt, ptm, pae, pae_sub_mat, pae_asym, entropy, dual, dual_cyclic, dual_dssp, dual_tmalign(requires a --template)] (default: %(default)s).'
+            [plddt, ptm, pae, pae_sub_mat, pae_asym, entropy, dual, dual_cyclic, dual_dssp, dual_tmalign(requires a --template)]\
+            multiple losses can be combined as comma separarted str (and weighed with --loss_weights) as loss_name|args :\
+            loss_0_name|loss0_param0;loss0_param1,loss_1_name|[loss_1_configfile.conf] ... \
+             (default: %(default)s).'
             )
 
     parser.add_argument(
@@ -245,6 +250,10 @@ def get_args():
         assert len(args.loss_weights) == len(args.loss)
 
     ########################################
+    # UPDATE / MUTATIONS 
+    ########################################
+
+    ########################################
     # SEQUENCES 
     ########################################
     #intialise empty sequences in case none are given
@@ -259,10 +268,10 @@ def get_args():
             args.proto_Ls = [int(length) if length!='' else 0 for length in args.L.split(',')]
 
 
-    elif '.af2h' in args.update:
-    # Parse .af2h file -- should be fasta, with an extra line after the sequence.
-    # The line after the sequence should be a comma-separated list of values (of the same length as the sequence) that represents the probability of mutating each position.
-        with open(args.update, 'r') as f:
+    elif '.af2h'  in args.update:
+        # Parse .af2h file -- should be fasta, with an extra line after the sequence.
+        # The line after the sequence should be a comma-separated list of values (of the same length as the sequence) that represents the probability of mutating each position.
+        with open(args.update.split('|')[0] , 'r') as f:
             lines = list(line for line in (l.strip() for l in f) if line) # strip empty lines.
             seq_prob = {}
             for entry in np.reshape(lines, (-1, 3)):
