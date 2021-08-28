@@ -222,7 +222,6 @@ def get_args():
     # losses processed in order 
     # if no parameters necessary list entry is empty list
     losses =  []
-    print(args.loss)
     for curr_loss_str in args.loss.strip(',').split(',') :
         loss_parameters = []
 

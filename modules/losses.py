@@ -57,8 +57,11 @@ def calculate_dssp_fractions(dssp_list):
     return fraction_beta, fraction_helix, fraction_other
 
 
-def tmalign_wrapper(template, temp_pdbfile):
-    p = subprocess.Popen(f'/home/lmilles/lm_bin/TMalign {template} {temp_pdbfile} | grep -E "RMSD|TM-score=" ', stdout=subprocess.PIPE, shell=True)
+def tmalign_wrapper(template, temp_pdbfile, force_alignment=None):
+    if force_alignment == None:
+        p = subprocess.Popen(f'/home/lmilles/lm_bin/TMalign {template} {temp_pdbfile} | grep -E "RMSD|TM-score=" ', stdout=subprocess.PIPE, shell=True)
+    else:
+        p = subprocess.Popen(f'/home/lmilles/lm_bin/TMalign {template} {temp_pdbfile} -i {force_alignment} | grep -E "RMSD|TM-score=" ', stdout=subprocess.PIPE, shell=True)
     output , __ = p.communicate()
     tm_RMSD  = float(str(output)[:-3].split("RMSD=")[-1].split(",")[0] )
     tm_score = float(str(output)[:-3].split("TM-score=")[-1].split("(if")[0] )
@@ -226,6 +229,8 @@ def compute_loss(losses, oligo, args, loss_weights):
             temp_pdbfile = f'{args.out}_models/tmp.pdb'
             with open( temp_pdbfile , 'w') as f:
                 f.write( protein.to_pdb(oligo.try_unrelaxed_structure) )
+
+            force_alignment = None
             
             tm_RMSD, tm_score = tmalign_wrapper(args.template, temp_pdbfile)
             print("   tm_RMSD, tmscore " , tm_RMSD, tm_score)
@@ -308,6 +313,7 @@ def compute_loss(losses, oligo, args, loss_weights):
 
             score =  1.6 * np.abs(score) - tm_score 
 
+        print( f'{loss_type}  {score:2.3f} '  )
         scores.append(score)
 
     assert len(scores) == len(loss_weights)
