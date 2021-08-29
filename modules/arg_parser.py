@@ -177,6 +177,12 @@ def get_args():
             help='template pdb to used with special loss functions (default: %(default)s).'
             )
 
+    parser.add_argument(
+            '--template_alignment',
+            default=None,
+            type=str,
+            help='enforce tmalign alignment with fasta file (default: %(default)s).'
+            )
 
     args = parser.parse_args()
 
@@ -316,10 +322,12 @@ def get_args():
     ########################################
     # reading in additional arguments for updates, currently just option for 
     # quantile to mutate when plddt or .af2h specified
+    args.update_params = None
     if '|' in args.update:
         # additional arguments in args.update
-        args.update , update_params = curr_loss_str.split('|')
+        args.update , update_params = args.update.split('|')
         args.update_params = float(update_params)
+        print (" update params set to ", args.update_params)
 
     # Additional Errors.
     if args.seq is None:

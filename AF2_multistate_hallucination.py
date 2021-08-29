@@ -314,10 +314,10 @@ for i in range(args.steps):
                 protomers.assign_mutations(mutate_random(n_mutations, protomers, AA_freq)) # mutate protomers
 
             elif args.update == 'plddt':
-                protomers.assign_mutations(mutate_plddt(n_mutations, protomers, oligomers, AA_freq)) # mutate protomers
+                protomers.assign_mutations(mutate_plddt(n_mutations, protomers, oligomers, AA_freq, args.update_params )) # mutate protomers
 
             elif '.af2h' in args.update:
-                protomers.assign_mutations(mutate_resfile(n_mutations, protomers, AA_freq)) # mutate protomers
+                protomers.assign_mutations(mutate_resfile(n_mutations, protomers, oligomers, AA_freq, args.update_params )) # mutate protomers
 
             for name, oligo in oligomers.items():
                 oligo.assign_oligo(protomers) # make new oligomers from mutated protomer sequences
