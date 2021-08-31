@@ -67,9 +67,9 @@ def get_args():
             default='random',
             action='store',
             type=str,
-            help='how to update the sequence at each step. Choose from [random, plddt|quantile, FILE.af2h|quantile]. \
+            help='how to update the sequence at each step. Choose from [random, plddt::quantile, FILE.af2h::quantile]. \
             FILE.af2h needs to be a file specifying the probability of mutation at each site\
-            optional arguments can be given with | e.g. plddt|0.25 will mutate only 25%% lowest plddt pos. (default: %(default)s).'
+            optional arguments can be given with :: e.g. plddt::0.25 will mutate only 25%% lowest plddt pos. (default: %(default)s).'
             )
 
     parser.add_argument(
@@ -77,9 +77,9 @@ def get_args():
             default='dual',
             type=str,
             help='the loss function used during optimization. Choose from \
-            [plddt, ptm, pae, pae_sub_mat, pae_asym, entropy, dual, dual_cyclic, dual_dssp, dual_tmalign(requires a --template)]\
-            multiple losses can be combined as comma separarted str (and weighed with --loss_weights) as loss_name|args :\
-            loss_0_name|loss0_param0;loss0_param1,loss_1_name|[loss_1_configfile.conf] ... \
+            [plddt, ptm, pae, pae_sub_mat, pae_asym, entropy, dual, dual_cyclic, dual_dssp [no working yet],tmalign(requires a --template), dual_tmalign(requires a --template)]\
+            multiple losses can be combined as comma separarted str (and weighed with --loss_weights) as loss_name::args :\
+            loss_0_name::loss0_param0;loss0_param1,loss_1_name::[loss_1_configfile.conf] ... \
              (default: %(default)s).'
             )
 
@@ -231,8 +231,8 @@ def get_args():
     for curr_loss_str in args.loss.strip(',').split(',') :
         loss_parameters = []
 
-        if '|'  in curr_loss_str:
-            loss_name , loss_arguments = curr_loss_str.split('|')[0]
+        if '::'  in curr_loss_str:
+            loss_name , loss_arguments = curr_loss_str.split('::')[0]
             
             for curr_loss_param in loss_arguments.strip(';').split(';'):
                 if "[" in curr_loss_param:
@@ -294,8 +294,8 @@ def get_args():
     elif '.af2h'  in args.update:
         # Parse .af2h file -- should be fasta, with an extra line after the sequence.
         # The line after the sequence should be a comma-separated list of values (of the same length as the sequence) that represents the probability of mutating each position.
-        print(" found .af2 ", args.update.split('|')[0])
-        with open(args.update.split('|')[0] , 'r') as f:
+        print(" found .af2 ", args.update.split('::')[0])
+        with open(args.update.split('::')[0] , 'r') as f:
             lines = list(line for line in (l.strip() for l in f) if line) # strip empty lines.
             seq_prob = {}
             for entry in np.reshape(lines, (-1, 3)):
@@ -323,9 +323,9 @@ def get_args():
     # reading in additional arguments for updates, currently just option for 
     # quantile to mutate when plddt or .af2h specified
     args.update_params = None
-    if '|' in args.update:
+    if '::' in args.update:
         # additional arguments in args.update
-        args.update , update_params = args.update.split('|')
+        args.update , update_params = args.update.split('::')
         args.update_params = float(update_params)
         print (" update params set to ", args.update_params)
 
