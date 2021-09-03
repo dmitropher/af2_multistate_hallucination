@@ -1,4 +1,5 @@
 # losses module
+
 import numpy as np
 import sys; sys.path.append('/projects/ml/alphafold/alphafold_git/')
 from alphafold.common import protein
@@ -8,6 +9,10 @@ from Bio.PDB.DSSP import dssp_dict_from_pdb_file
 # to run tmalign
 import subprocess
 
+
+######################################################
+# COMMON FUNCTIONS USED BY DIFFERENT LOSSES.
+######################################################
 
 def get_coord(atom_type, oligo_object):
     '''
@@ -37,21 +42,25 @@ def get_coord(atom_type, oligo_object):
 
     return coord
 
-def dssp_wrapper(pdbfile):
 
-    dssp_tuple = dssp_dict_from_pdb_file(pdbfile, DSSP="/home/lmilles/lm_bin/dssp" )[0]
+def dssp_wrapper(pdbfile):
+    '''Compute DSSP string on structure.'''
+
+    dssp_tuple = dssp_dict_from_pdb_file(pdbfile, DSSP="/home/lmilles/lm_bin/dssp")[0]
 
     dssp_list = []
     for key in dssp_tuple.keys():
-        dssp_list.append( dssp[key][2] )
+        dssp_list.append(dssp[key][2])
 
     return dssp_list
 
 def calculate_dssp_fractions(dssp_list):
+    '''Compute DSSP fraction based on a DSSP list.'''
+
     N_residues = len(dssp_list)
     fraction_beta  = float(dssp_list.count("E") ) / float(N_residues)
     fraction_helix = float(dssp_list.count("H") ) / float(N_residues)
-    fraction_other = float(1.0-fraction_beta-fraction_helix)
+    fraction_other = float(1.0 - fraction_beta-fraction_helix)
     # print(dssp_list, fraction_beta, fraction_helix, fraction_other)
 
     return fraction_beta, fraction_helix, fraction_other
@@ -62,30 +71,37 @@ def tmalign_wrapper(template, temp_pdbfile, force_alignment=None):
         p = subprocess.Popen(f'/home/lmilles/lm_bin/TMalign {template} {temp_pdbfile} | grep -E "RMSD|TM-score=" ', stdout=subprocess.PIPE, shell=True)
     else:
         p = subprocess.Popen(f'/home/lmilles/lm_bin/TMalign {template} {temp_pdbfile} -I {force_alignment} | grep -E "RMSD|TM-score=" ', stdout=subprocess.PIPE, shell=True)
-    output , __ = p.communicate()
-    tm_RMSD  = float(str(output)[:-3].split("RMSD=")[-1].split(",")[0] )
+    output, __ = p.communicate()
+    tm_rmsd  = float(str(output)[:-3].split("RMSD=")[-1].split(",")[0] )
     tm_score = float(str(output)[:-3].split("TM-score=")[-1].split("(if")[0] )
-    
-    return tm_RMSD, tm_score
+
+    return tm_rmsd, tm_score
+
+
+############################
+# LOSS COMPUTATION
+############################
 
 def compute_loss(losses, oligo, args, loss_weights):
     '''
     Compute the loss of a single oligomer.
-    loss_type: string defining which loss to use.
-    oligo: an Oligomer object
+    losses: list of list of losses and their associated arguments (if any).
+    oligo: an Oligomer object.
+    args: the whole argument namespace (some specific arguments are required for some specific losses).
+    loss_weights: list of weights associated with each loss.
     '''
     # intialize scores
     scores = []
-    # iterate over all losses in dict
+    # iterate over all losses
     for loss_idx, current_loss in enumerate(losses) :
-        loss_type , loss_params  = current_loss
+        loss_type, loss_params  = current_loss # assign loss and its arguments if any.
 
         if loss_type == 'plddt':
             # NOTE:
             # Using this loss will optimise plddt (predicted lDDT) for the sequence(s).
             # Early benchmarks suggest that this is not appropriate for forcing the emergence of complexes.
             # Optimised sequences tend to be folded (or have good secondary structures) without forming inter-chain contacts.
-            score = 1. - np.mean(oligo.try_prediction_results['plddt']) 
+            score = 1. - np.mean(oligo.try_prediction_results['plddt'])
 
 
         elif loss_type == 'ptm':
@@ -101,7 +117,6 @@ def compute_loss(losses, oligo, args, loss_weights):
             # Using this loss will optimise the mean of the pae matrix (predicted alignment error).
             # This loss has not been properly benchmarked, but some early results suggest that it might suffer from the same problem as ptm.
             # During optimisation, off-digonal contacts (inter-chain) may get optimsed at the expense of the diagonal elements (intra-chain).
-
             norm = np.mean(oligo.init_prediction_results['predicted_aligned_error'])
             score = np.mean(oligo.try_prediction_results['predicted_aligned_error']) / norm
 
@@ -161,7 +176,7 @@ def compute_loss(losses, oligo, args, loss_weights):
             # The weight correction is scaled with the shape of the matrix of sub matrices.
             # By default is scales so that the re-weighted terms count as much as the rest (irrespective of the size of the matrix of sub matrices)
 
-            contribution = 0.5 # if set to one, the re-weighting is done such that diagonal/corner elements count as much as the rest.
+            contribution = 1 # if set to one, the re-weighting is done such that diagonal/corner elements count as much as the rest.
 
             sub_mat_means_init = []
             sub_mat_means = []
@@ -220,110 +235,63 @@ def compute_loss(losses, oligo, args, loss_weights):
                        - (oligo.try_prediction_results['ptm'] / 2.)  \
                        +  separation_std
 
+
         elif loss_type == "tmalign":
             # NOTE:
-            # This loss jointly optimises ptm and plddt and tmscore against a template (equal weights).
-            # a loss to enforce tmscore against a given structure
-            # IN DEVELOPMENT
-            # write temporary pdbfile as temporary 
+            # a loss to enforce tmscore against a given template.
+
+            # write temporary pdbfile to compute tmscore.
             temp_pdbfile = f'{args.out}_models/tmp.pdb'
             with open( temp_pdbfile , 'w') as f:
                 f.write( protein.to_pdb(oligo.try_unrelaxed_structure) )
 
             force_alignment = None
-            
-            tm_RMSD, tm_score = tmalign_wrapper(args.template, temp_pdbfile, args.template_alignment)
-            print("   tm_RMSD, tmscore " , tm_RMSD, tm_score)
 
-            score = 1. - tm_score 
+            tm_rmsd, tm_score = tmalign_wrapper(args.template, temp_pdbfile, args.template_alignment)
+            print("   tm_RMSD, tmscore " , tm_rmsd, tm_score)
+
+            score = 1. - tm_score
+
+
+        elif loss_type == "dual_tmalign":
+            # NOTE:
+            # This loss jointly optimises plddt, ptm, and tmscore against a template (equal weights).
+
+            # write temporary pdbfile to compute tmscore.
+            temp_pdbfile = f'{args.out}_models/tmp.pdb'
+            with open( temp_pdbfile , 'w') as f:
+                f.write( protein.to_pdb(oligo.try_unrelaxed_structure) )
+
+            tm_rmsd, tm_score = tmalign_wrapper(args.template, temp_pdbfile, args.template_alignment)
+            print("   tm_RMSD, tmscore" , tm_rmsd, tm_score)
+
+            score = 1. - (np.mean(oligo.try_prediction_results['plddt']) / 3.) - (oligo.try_prediction_results['ptm'] / 3.) - (tm_score / 3.)
+
 
         elif loss_type == "dual_dssp":
             # NOTE:
             # This loss jointly optimises ptm and plddt (equal weights).
             # additionally a loss to enforce a fraction of secondary structure elements (e.g. 80% of fold must be beta sheet) is enforced
             # IN DEVELOPMENT
-            # write temporary pdbfile as temporary 
+
+            # write temporary pdbfile for computing DSSP.
             temp_pdbfile = f'{args.out}_models/tmp.pdb'
             with open( temp_pdbfile , 'w') as f:
                 f.write( protein.to_pdb(oligo.try_unrelaxed_structure) )
-            
+
             dssp_list = dssp_wrapper(temp_pdbfile)
             fraction_beta, fraction_helix, fraction_other = calculate_dssp_fractions(dssp_list)
             print (f" fraction E|H|L: {fraction_beta:2.2f} | {fraction_helix:2.2f} | {fraction_other:2.2f}")
 
             score = 1. - (np.mean(oligo.try_prediction_results['plddt']) / 2. ) - (oligo.try_prediction_results['ptm'] / 2.)
 
-        elif loss_type == "dual_tmalign":
-            # NOTE:
-            # This loss jointly optimises ptm and plddt and tmscore against a template (equal weights).
-            # a loss to enforce tmscore against a given structure
-            # IN DEVELOPMENT
-            # write temporary pdbfile as temporary 
-            temp_pdbfile = f'{args.out}_models/tmp.pdb'
-            with open( temp_pdbfile , 'w') as f:
-                f.write( protein.to_pdb(oligo.try_unrelaxed_structure) )
-            
-            tm_RMSD, tm_score = tmalign_wrapper(args.template, temp_pdbfile, args.template_alignment)
-            print("   tm_RMSD, tmscore" , tm_RMSD, tm_score)
-
-
-            score = 1. - (np.mean(oligo.try_prediction_results['plddt']) / 3.) - (oligo.try_prediction_results['ptm'] / 3.) - (tm_score / 3.)
-
-        elif loss_type == "pae_asym_tmalign":
-            # NOTE:
-            # same as PAE loss, but enforce resemblance to template pdb with tmalign
-
-            contribution = 0.5 # if set to one, the re-weighting is done such that diagonal/corner elements count as much as the rest.
-
-            sub_mat_means_init = []
-            sub_mat_means = []
-            prev1, prev2 = 0, 0
-            for L1 in oligo.chain_Ls:
-                Lcorr1 = prev1 + L1
-
-                for L2 in oligo.chain_Ls:
-                    Lcorr2 = prev2 + L2
-                    sub_mat_means_init.append(np.mean(oligo.init_prediction_results['predicted_aligned_error'][prev1:Lcorr1, prev2:Lcorr2])) # means of the initial sub-matrices
-                    sub_mat_means.append(np.mean(oligo.try_prediction_results['predicted_aligned_error'][prev1:Lcorr1, prev2:Lcorr2])) # means of the tried move sub-matrices
-                    prev2 = Lcorr2
-
-                prev2 = 0
-                prev1 = Lcorr1
-
-            w_corr = contribution * (oligo.oligo_L**2) / (2 * oligo.oligo_L) # correction scales with the size of the matrix of sub matrices and the desired contribution.
-
-            # Weight matrix
-            W = np.ones((len(oligo.subunits), len(oligo.subunits)))
-            W[0, -1] = 1 * w_corr
-            W[-1, 0] = 1 * w_corr
-            W[np.where(np.eye(*W.shape, k=-1) == 1)] = 1 * w_corr
-            W[np.where(np.eye(*W.shape, k=1) == 1)] = 1 * w_corr
-
-            norm = np.mean( W * np.reshape(sub_mat_means_init, (len(oligo.subunits), len(oligo.subunits))))
-            score = np.mean( W * np.reshape(sub_mat_means, (len(oligo.subunits), len(oligo.subunits)))) / norm
-
-
-            # write temporary pdbfile as tmp.pdb 
-            temp_pdbfile = f'{args.out}_models/tmp.pdb'
-            with open( temp_pdbfile , 'w') as f:
-                f.write( protein.to_pdb(oligo.try_unrelaxed_structure) )
-
-            tm_RMSD, tm_score = tmalign_wrapper(args.template, temp_pdbfile, args.template_alignment)
-            print("    tm_RMSD | tmscore" , tm_RMSD, tm_score, " alignment: ", args.template_alignment )
-
-            score =  1.6 * np.abs(score) - tm_score 
-
-        print( f'  {loss_type}  {score:2.3f} '  )
         scores.append(score)
 
-    assert len(scores) == len(loss_weights)
-
-
-    # normalize loss weights
+    # Normalize loss weights vector.
     loss_weights_normalized = np.array(loss_weights) / np.sum(loss_weights)
-    # combine scores with all weights
-    # score is the average of all weighted scores
-    final_score = np.mean( np.array(scores) * loss_weights_normalized ) 
+
+    # Total loss for this oligomer is the average of its weighted scores.
+    final_score = np.mean( np.array(scores) * loss_weights_normalized )
 
     # The loss counts positively or negatively to the overall loss depending on whether this oligomer is positively or negatively designed.
     if oligo.positive_design == True:

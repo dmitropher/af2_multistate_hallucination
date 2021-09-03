@@ -1,7 +1,7 @@
 #!/software/conda/envs/SE3/bin/python
 
 ## Script for performing multistate-state design using AlphaFold2 MCMC hallucination.
-## Basile Wicky <basile.wicky@gmail.com>
+## <bwicky@uw.edu> and <lmilles@uw.edu>
 ## Started: 2021-08-11
 ## Re-factored: 2021-08-20
 
@@ -16,7 +16,7 @@ import copy
 script_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(script_dir + '/modules/') # import modules
 from arg_parser import *
-from seq_mutation import *
+from mutations import *
 from af2_net import *
 from losses import *
 
@@ -71,7 +71,11 @@ class Protomers:
         self.current_sequences = {p:s for p, s in self.init_sequences.items()}
         self.try_sequences = {p:s for p, s in self.init_sequences.items()}
 
-    # Method functions
+    # Method functions.
+    def assign_mutable_positions(self, mutable_positions):
+        '''Assign dictonary of protomers with arrays of mutable positions.'''
+        self.mutable_positions = mutable_positions
+
     def assign_mutations(self, mutated_protomers):
         '''Assign mutated sequences to try_sequences.'''
         self.try_sequences = mutated_protomers
@@ -155,86 +159,50 @@ class Oligomer:
 # INITALISATION
 ##################################
 
-args = get_args(); print(args)
+args = get_args(); print('#', args)
 
 os.makedirs(f'{args.out}_models', exist_ok=True) # where all the outputs will go.
 
 # Notes.
-print(f'Git commit: {args.commit}')
-print(f'The following oligomers will be designed:')
-for oligo in args.oligo.split(','):
-    print(f'>> {oligo[:-1]} ({(lambda x: "positive" if x=="+" else "negative")(oligo[-1])} design)')
-print(f'Simulated annealing will be performed over {args.steps} steps with a starting temperature of {args.T_init} and a half-life for the temperature decay of {args.half_life} steps.')
-print(f'The mutation rate at each step will go from {args.mutations.split("-")[0]} to {args.mutations.split("-")[1]} over {args.steps} steps (stepped linear decay).')
-if args.tolerance is not None:
-    print(f'A tolerance setting of {args.tolerance} was set, which might terminate the MCMC trajectory early.')
-print(f'The choice of position to mutate at each step will be based on {args.update}.')
-print(f'Predictions will be performed with AlphaFold2 model_{args.model}_ptm, with recyling set to {args.recycles}, and {args.msa_clusters} MSA cluster(s).')
-print(f'The loss function used during optimisation was set to: {args.loss}. with loss weights {args.loss_weights}.')
-
-# From my rough calculation on 16k random sequences from uniref50 -- should be double-checked.
-# Todo: add option in argparse
-if True: 
-    AA_freq = {'A': 0.08792778710242188,
-         'C': 0.01490447165931344,
-         'D': 0.05376829211614807,
-         'E': 0.06221732055447876,
-         'F': 0.0387452994166819,
-         'G': 0.06967025329309677,
-         'H': 0.0220976574048796,
-         'I': 0.05310343411361993,
-         'K': 0.050663741170247516,
-         'L': 0.09526978211127052,
-         'M': 0.02104293453672198,
-         'N': 0.04018028904075636,
-         'P': 0.051666128157006476,
-         'Q': 0.03820000002411093,
-         'R': 0.061578750547546295,
-         'S': 0.07520039163719089,
-         'T': 0.05700516530640848,
-         'V': 0.06437948487920657,
-         'W': 0.013588957652402187,
-         'Y': 0.02837870159741062}
+print(f'> Git commit: {args.commit}')
+if args.single_chain == True:
+    print('> Design(s) will be generated as sequence-symmetric repeat proteins, NOT oligomers.')
+    print('> The following repeat proteins will be designed:')
 else:
-    # from aivans aa_comp in previous hallucinations
-    # please double check !!!
-    AA_freq = {
-         'A': 0.07892653, 
-         'R': 0.04979037, 
-         'N': 0.0451488 , 
-         'D': 0.0603382 , 
-         'C': 0.01261332,      
-         'Q': 0.03783883, 
-         'E': 0.06592534, 
-         'G': 0.07122109, 
-         'H': 0.02324815, 
-         'I': 0.05647807,      
-         'L': 0.09311339, 
-         'M': 0.05980368, 
-         'F': 0.02072943, 
-         'P': 0.04145316, 
-         'S': 0.04631926,       
-         'T': 0.06123779, 
-         'W': 0.0547427 , 
-         'Y': 0.01489194, 
-         'V': 0.03705282, 
-         '-': 0.0691271,    
-    }
-    # ivan's natural AA composition
-    # AA_COMP = np.array([0.07892653, 0.04979037, 0.0451488 , 0.0603382 , 0.01261332,
-    #                     0.03783883, 0.06592534, 0.07122109, 0.02324815, 0.05647807,
-    #                     0.09311339, 0.05980368, 0.02072943, 0.04145316, 0.04631926,
-    #                     0.06123779, 0.0547427 , 0.01489194, 0.03705282, 0.0691271])
-    # alpha_1 = list("ARNDCQEGHILKMFPSTWYV-")
-    # states = len(alpha_1)
-    # alpha_3 = ['ALA','ARG','ASN','ASP','CYS','GLN','GLU','GLY','HIS','ILE',
-    #            'LEU','LYS','MET','PHE','PRO','SER','THR','TRP','TYR','VAL','GAP']
-    # # STANDARD MODE BIAS - from /home/davidcj/projects/TrR_for_design_v2/design_round2/
-    # TR_AA_FREQ_STAN = np.array([0.01597168, 0.02502841, 0.02988023, 0.10575225, 0.07307457,
-    #                             0.02020281, 0.12834164, 0.05110587, 0.00535012, 0.09485969,
-    #                             0.06157007, 0.09948422, 0.02655827, 0.01981817, 0.15902614,
-    #                             0.01212519, 0.01049917, 0.00893435, 0.00884693, 0.04357024])
-    # AA_REF = np.log(TR_AA_FREQ_STAN/AA_COMP)
+    print(f'> The following oligomers will be designed:')
+for i, oligo in enumerate(args.oligo.strip(',').split(',')):
+    print(f' >> {oligo[:-1]} ({(lambda x: "positive" if x=="+" else "negative")(oligo[-1])} design), contributing {args.oligo_weights[i]} to the global loss')
+print(f'> Simulated annealing will be performed over {args.steps} steps with a starting temperature of {args.T_init} and a half-life for the temperature decay of {args.half_life} steps.')
+print(f'> The mutation rate at each step will go from {args.mutation_rate.split("-")[0]} to {args.mutation_rate.split("-")[1]} over {args.steps} steps (stepped linear decay).')
+if args.tolerance is not None:
+    print(f'> A tolerance setting of {args.tolerance} was set, which might terminate the MCMC trajectory early.')
+print(f'> The choice of position to mutate at each step will be based on {args.select_positions}, with parameter(s): {args.select_position_params}.')
+print(f'> At each step, selected positions will be mutated based on {args.mutation_method}.')
+print(f'> Predictions will be performed with AlphaFold2 model_{args.model}_ptm, with recyling set to {args.recycles}, and {args.msa_clusters} MSA cluster(s).')
+print(f'> The loss function used during optimisation was set to: {args.loss}, with respective weights: {args.loss_weights}.')
+
+# Amino-acid frequencies taken from background frequencies of BLOSUM62.
+# Data from https://www.ncbi.nlm.nih.gov/IEB/ToolBox/CPP_DOC/lxr/source/src/algo/blast/composition_adjustment/matrix_frequency_data.c
+AA_freq = {'A': 0.07421620506799341,
+ 'R': 0.05161448614128464,
+ 'N': 0.044645808512757915,
+ 'D': 0.05362600083855441,
+ 'C': 0.02468745716794485,
+ 'Q': 0.03425965059141602,
+ 'E': 0.0543119256845875,
+ 'G': 0.074146941452645,
+ 'H': 0.026212984805266227,
+ 'I': 0.06791736761895376,
+ 'L': 0.09890786849715096,
+ 'K': 0.05815568230307968,
+ 'M': 0.02499019757964311,
+ 'F': 0.04741845974228475,
+ 'P': 0.038538003320306206,
+ 'S': 0.05722902947649442,
+ 'T': 0.05089136455028703,
+ 'W': 0.013029956129972148,
+ 'Y': 0.03228151231375858,
+ 'V': 0.07291909820561925}
 
 for aa in args.exclude_AA:
     del AA_freq[aa]
@@ -244,8 +212,8 @@ sum_freq = np.sum(list(AA_freq.values()))
 adj_freq = [f/sum_freq for f in list(AA_freq.values())]
 AA_freq = dict(zip(AA_freq, adj_freq))
 
-print(f'Allowed amino acids: {len(AA_freq.keys())} [{" ".join([aa for aa in list(AA_freq.keys())])}]')
-print(f'Excluded amino acids: {len(args.exclude_AA)} [{" ".join([aa for aa in args.exclude_AA])}]')
+print(f'> Allowed amino acids: {len(AA_freq.keys())} [{" ".join([aa for aa in list(AA_freq.keys())])}]')
+print(f'> Excluded amino acids: {len(args.exclude_AA)} [{" ".join([aa for aa in args.exclude_AA])}]')
 
 # Initialise Protomer object (one for the whole simulation).
 if args.proto_sequences is None:
@@ -255,8 +223,8 @@ else:
     protomers = Protomers(unique_protomers=args.unique_protomers, lengths=args.proto_Ls, aa_freq=AA_freq, sequences=args.proto_sequences, position_weights=args.position_weights)
 
 for proto, seq in protomers.init_sequences.items():
-    print(f'Protomer {proto} init sequence: {seq}')
-    print(f'Protomer {proto} position-specific weights: {protomers.position_weights[proto]}')
+    print(f' >> Protomer {proto} init sequence: {seq}')
+    print(f' >> Protomer {proto} position-specific weights: {protomers.position_weights[proto]}')
 
 # Initialise Oligomer objects (one for each specified oligomer).
 oligomers = {}
@@ -280,7 +248,7 @@ with open(f'{args.out}_models/{os.path.splitext(os.path.basename(args.out))[0]}.
 # MCMC WITH SIMULATED ANNEALING
 ####################################
 
-Mi, Mf = args.mutations.split('-')
+Mi, Mf = args.mutation_rate.split('-')
 M = np.linspace(int(Mi), int(Mf), args.steps) # stepped linear decay of the mutation rate
 
 current_loss = np.inf
@@ -299,34 +267,51 @@ for i in range(args.steps):
         T = args.T_init * (np.exp(np.log(0.5) / args.half_life) ** i) # update temperature
         n_mutations = round(M[i]) # update mutation rate
         accepted = False # reset
-        try_loss = 0.0
+        try_losses = []
+
         if i == 0: # do a first pass through the network before mutating anything -- baseline
+            print('-' * 100)
+            print('Starting...')
             for name, oligo in oligomers.items():
-                af2_prediction = predict_structure(oligo, model_runners[name], random_seed=np.random.randint(10)) # run AlphaFold2 prediction
+                af2_prediction = predict_structure(oligo,
+                                                    args.single_chain,
+                                                    model_runners[name],
+                                                    random_seed=np.random.randint(42)) # run AlphaFold2 prediction
                 oligo.init_prediction(af2_prediction) # assign
-                loss = compute_loss(args.loss, oligo, args, args.loss_weights) # calculate the loss
+                loss = compute_loss(args.loss,
+                                    oligo,
+                                    args,
+                                    args.loss_weights) # calculate the loss
                 oligo.init_loss(loss) # assign
-                try_loss += loss # increment global loss
+                try_losses.append(loss) # increment global loss
 
-        else: # mutate protomer sequences and generate updated oligomer sequences
+        else:
 
-            if args.update == 'random':
-                protomers.assign_mutations(mutate_random(n_mutations, protomers, AA_freq)) # mutate protomers
-
-            elif args.update == 'plddt':
-                protomers.assign_mutations(mutate_plddt(n_mutations, protomers, oligomers, AA_freq, args.update_params )) # mutate protomers
-
-            elif '.af2h' in args.update:
-                protomers.assign_mutations(mutate_resfile(n_mutations, protomers, oligomers, AA_freq, args.update_params )) # mutate protomers
+            # Mutate protomer sequences and generate updated oligomer sequences
+            protomers.assign_mutable_positions(select_positions(n_mutations,
+                                                                protomers,
+                                                                oligomers,
+                                                                args.select_positions,
+                                                                args.select_position_params)) # define mutable positions for each protomer
+            protomers.assign_mutations(mutate(args.mutation_method,
+                                                protomers,
+                                                AA_freq)) # mutate those positions
 
             for name, oligo in oligomers.items():
                 oligo.assign_oligo(protomers) # make new oligomers from mutated protomer sequences
-                oligo.assign_prediction(predict_structure(oligo, model_runners[name], random_seed=np.random.randint(10))) # run AlphaFold2 prediction
+                oligo.assign_prediction(predict_structure(oligo,
+                                                            args.single_chain,
+                                                            model_runners[name],
+                                                            random_seed=np.random.randint(42))) # run AlphaFold2 prediction
                 loss = compute_loss(args.loss, oligo, args, args.loss_weights) # calculate the loss for that oligomer
                 oligo.assign_loss(loss) # assign the loss to the object (for tracking)
-                try_loss += loss # increment the global loss
+                try_losses.append(loss) # increment the global loss
 
-        try_loss /= len(oligomers) # take the mean of the individual oligomer losses (forces scaling between 0 and 1)
+        # Normalize oligo weights vector.
+        oligo_weights_normalized = np.array(args.oligo_weights) / np.sum(args.oligo_weights)
+
+        # Global loss is the weighted average of the individual oligomer losses.
+        try_loss = np.mean( np.array(try_losses) * oligo_weights_normalized )
 
         delta = try_loss - current_loss # all losses must be defined such that optimising equates to minimising.
 
@@ -334,20 +319,21 @@ for i in range(args.steps):
         if delta < 0:
             accepted = True
 
-            print(f'Step {i:04d}: change accepted\n>>LOSS {current_loss:2.4f} --> {try_loss:2.4f}')
+            print(f'Step {i:05d}: change accepted >> LOSS {current_loss:2.3f} --> {try_loss:2.3f}')
 
             current_loss = float(try_loss) # accept loss change
             protomers.update_mutations() # accept sequence changes
 
             for name, oligo in oligomers.items():
-                print(f' >{name} loss  {oligo.current_loss:2.3f} --> {oligo.try_loss:2.3f}')
-                print(f' >{name} plddt {np.mean(oligo.current_prediction_results["plddt"]):2.3f} --> {np.mean(oligo.try_prediction_results["plddt"]):2.3f}')
-                print(f' >{name} ptm   {oligo.current_prediction_results["ptm"]:2.3f} --> {oligo.try_prediction_results["ptm"]:2.3f}')
-                print(f' >{name} pae   {np.mean(oligo.current_prediction_results["predicted_aligned_error"]):2.3f} --> {np.mean(oligo.try_prediction_results["predicted_aligned_error"]):2.3f}')
-                print('-' * 70)
+                print(f' > {name} loss  {oligo.current_loss:2.3f} --> {oligo.try_loss:2.3f}')
+                print(f' > {name} plddt {np.mean(oligo.current_prediction_results["plddt"]):2.3f} --> {np.mean(oligo.try_prediction_results["plddt"]):2.3f}')
+                print(f' > {name} ptm   {oligo.current_prediction_results["ptm"]:2.3f} --> {oligo.try_prediction_results["ptm"]:2.3f}')
+                print(f' > {name} pae   {np.mean(oligo.current_prediction_results["predicted_aligned_error"]):2.3f} --> {np.mean(oligo.try_prediction_results["predicted_aligned_error"]):2.3f}')
                 oligo.update_oligo() # accept sequence changes
                 oligo.update_prediction() # accept score/structure changes
                 oligo.update_loss() # accept loss change
+
+            print('=' * 70)
 
         # If the new solution is not better, accept it with a probability of e^(-cost/temp).
         else:
@@ -355,39 +341,58 @@ for i in range(args.steps):
             if np.random.uniform(0, 1) < np.exp( -delta / T):
                 accepted = True
 
-                print(f'Step {i:04d}: change accepted despite not improving the loss\n>>LOSS {current_loss} --> {try_loss}')
+                print(f'Step {i:05d}: change accepted despite not improving the loss >> LOSS {current_loss:2.3f} --> {try_loss:2.3f}')
 
                 current_loss = float(try_loss)
                 protomers.update_mutations() # accept sequence changes
 
                 for name, oligo in oligomers.items():
-                    print(f' >{name} loss  {oligo.current_loss:2.3f} --> {oligo.try_loss:2.3f}')
-                    print(f' >{name} plddt {np.mean(oligo.current_prediction_results["plddt"]):2.3f} --> {np.mean(oligo.try_prediction_results["plddt"]):2.3f}')
-                    print(f' >{name} ptm   {oligo.current_prediction_results["ptm"]:2.3f} --> {oligo.try_prediction_results["ptm"]:2.3f}')
-                    print(f' >{name} pae   {np.mean(oligo.current_prediction_results["predicted_aligned_error"]):2.3f} --> {np.mean(oligo.try_prediction_results["predicted_aligned_error"]):2.3f}')
-                    print('-' * 80)
+                    print(f' > {name} loss  {oligo.current_loss:2.3f} --> {oligo.try_loss:2.3f}')
+                    print(f' > {name} plddt {np.mean(oligo.current_prediction_results["plddt"]):2.3f} --> {np.mean(oligo.try_prediction_results["plddt"]):2.3f}')
+                    print(f' > {name} ptm   {oligo.current_prediction_results["ptm"]:2.3f} --> {oligo.try_prediction_results["ptm"]:2.3f}')
+                    print(f' > {name} pae   {np.mean(oligo.current_prediction_results["predicted_aligned_error"]):2.3f} --> {np.mean(oligo.try_prediction_results["predicted_aligned_error"]):2.3f}')
                     oligo.update_oligo() # accept sequence changes
                     oligo.update_prediction() # accept score/structure changes
                     oligo.update_loss() # accept loss change
 
+                print('=' * 70)
 
             else:
                 accepted = False
-                print(f'Step {i}: change rejected\n>>LOSS {current_loss} !-> {try_loss}')
+                print(f'Step {i:05d}: change rejected >> LOSS {current_loss:2.3f} !-> {try_loss:2.3f}')
                 print('-' * 70)
 
-        # Save PDB is move was accepted.
+        # Save PDB if move was accepted.
         if accepted == True:
 
             for name, oligo in oligomers.items():
 
-                with open(f'{args.out}_models/{os.path.splitext(os.path.basename(args.out))[0]}_{oligo.name}_step_{str(i).zfill(4)}.pdb', 'w') as f:
+                with open(f'{args.out}_models/{os.path.splitext(os.path.basename(args.out))[0]}_{oligo.name}_step_{str(i).zfill(5)}.pdb', 'w') as f:
                     # write pdb
                     if args.amber_relax == 0 :
-                        f.write(protein.to_pdb( oligo.current_unrelaxed_structure) )
+                        pdb_lines = protein.to_pdb(oligo.current_unrelaxed_structure).split('\n')
                     elif args.amber_relax == 1 :
-                        f.write( amber_relax(oligo.current_unrelaxed_structure) )
+                        pdb_lines = amber_relax(oligo.current_unrelaxed_structure).split('\n')
 
+                    # Identify chain breaks and re-assign chains correctly before generating PDB file.
+                    split_lines = [l.split() for l in pdb_lines if 'ATOM' in l]
+                    split_lines = np.array([l[:4] + [l[4][0]] + [l[4][1:]] + l[5:] if len(l)<12 else l for l in split_lines]) # chain and resid no longer space-separated at high resid.
+                    splits = np.argwhere(np.diff(split_lines.T[5].astype(int))>1).flatten() + 1 # identify idx of chain breaks based on resid jump.
+                    splits = np.append(splits, len(split_lines))
+                    chains = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+                    chain_str = ''
+                    prev = 0
+                    for ch, resid in enumerate(splits): # make new chain string
+                        length = resid - prev
+                        chain_str += chains[ch] * length
+                        prev = resid
+                    atom_lines = [l for l in pdb_lines if 'ATOM' in l]
+                    new_lines = [l[:21]+chain_str[k]+l[22:] for k, l in enumerate(atom_lines) if 'ATOM' in l] # generate chain-corrected PDB lines.
+
+                    # write PDB file and append scores at the end of it.
+                    f.write('MODEL     1\n')
+                    f.write('\n'.join(new_lines))
+                    f.write('\nENDMDL\nEND\n')
                     f.write(f'plddt_array {",".join(oligo.current_prediction_results["plddt"].astype(str))}\n')
                     f.write(f'plddt {np.mean(oligo.current_prediction_results["plddt"])}\n')
                     f.write(f'ptm {oligo.current_prediction_results["ptm"]}\n')
@@ -397,12 +402,12 @@ for i in range(args.steps):
 
                 # Optionally save the PAE matrix
                 if args.output_pae == True:
-                    np.save(f'{args.out}_models/{os.path.splitext(os.path.basename(args.out))[0]}_{oligo}_step_{str(i).zfill(4)}.npy', oligo.current_prediction_results['predicted_aligned_error'])
+                    np.save(f'{args.out}_models/{os.path.splitext(os.path.basename(args.out))[0]}_{oligo.name}_step_{str(i).zfill(5)}.npy', oligo.current_prediction_results['predicted_aligned_error'])
 
 
         # Save scores for the step (even if rejected).
         # step accepted temperature mutations loss plddt ptm pae '
-        score_string = f'{i:04d} '
+        score_string = f'{i:05d} '
         score_string += f'{accepted} '
         score_string += f'{T} '
         score_string += f'{n_mutations} '

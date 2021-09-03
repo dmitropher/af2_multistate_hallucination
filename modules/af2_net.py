@@ -65,9 +65,10 @@ def mk_mock_template(query_sequence):
 
 
 def predict_structure(oligo_object,
+                    single_chain,
                     model_runner: model.RunModel,
                     random_seed=0):
-    """Predicts structure for a given oligomer using AlphaFold2."""
+    '''Predicts structure for a given oligomer using AlphaFold2.'''
 
     query_sequence = oligo_object.try_seq
     Ls = oligo_object.chain_Ls
@@ -86,14 +87,15 @@ def predict_structure(oligo_object,
     # Get features.
     feature_dict = data_pipeline_mock.process()
 
-    # Add big enough number to residue index to indicate chain breaks.
-    idx_res = feature_dict['residue_index']
-    L_prev = 0
-    # Ls: number of residues in each chain.
-    for L_i in Ls[:-1]:
-        idx_res[L_prev+L_i:] += 200
-        L_prev += L_i
-    feature_dict['residue_index'] = idx_res
+    if single_chain == False:
+        # Add big enough number to residue index to indicate chain breaks.
+        idx_res = feature_dict['residue_index']
+        L_prev = 0
+        # Ls: number of residues in each chain.
+        for L_i in Ls[:-1]:
+            idx_res[L_prev+L_i:] += 200
+            L_prev += L_i
+        feature_dict['residue_index'] = idx_res
 
     # Run AlphaFold2 prediction.
     start = timer()
@@ -104,21 +106,21 @@ def predict_structure(oligo_object,
     # scale pLDDT to be between 0 and 1
     prediction_results['plddt'] = prediction_results['plddt'] / 100.0
 
-    print(f'{oligo_object.name} prediction took {(end - start):.2f} s')
+    print(f'({oligo_object.name} prediction took {(end - start):.1f} s)')
 
     return prediction_results, unrelaxed_protein
 
+
 def amber_relax(unrelaxed_protein):
+    '''Relax the prediction, return Amber-relaxed protein'''
 
     start = timer()
-    # Relax the prediction, return relaxed protein
     amber_relaxer = relax.AmberRelaxation(max_iterations=0,tolerance=2.39,
                                             stiffness=10.0,exclude_residues=[],
-                                            max_outer_iterations=20)      
+                                            max_outer_iterations=20)
     relaxed_protein, _, _ = amber_relaxer.process(prot=unrelaxed_protein)
-
     end = timer()
 
-    print(f' AMBER relax took {(end - start):.2f} s')
+    print(f' AMBER relax took {(end - start):.1f} s')
 
     return relaxed_protein
