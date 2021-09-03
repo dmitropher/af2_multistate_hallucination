@@ -89,13 +89,13 @@ def select_positions(n_mutations, proto_object, oligo_dict, select_positions, se
         # Otherwise choose positions among user-defined positions with provided frequency-adjustment.
 
         # if selecting worst residues based on plddt, extract stacked pLDDT array across all protomers in the various oligomers.
-        if update_params != None :
+        if select_position_params != None :
             quantile = float(select_position_params) # user-specified quantile.
             stacked_plddts = extract_stacked_plddts(proto_object, oligo_dict)
 
         for proto, seq in proto_object.current_sequences.items():
 
-            if update_params != None :
+            if select_position_params != None :
                 # position weights is a np array
                 # make position weights 1.0 if non-zero for this protomer
                 # np.nonzero returns tuple of arrays along each axis, here choose for axis=0
