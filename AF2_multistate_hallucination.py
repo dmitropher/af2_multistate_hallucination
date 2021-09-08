@@ -379,7 +379,7 @@ for i in range(args.steps):
                     split_lines = np.array([l[:4] + [l[4][0]] + [l[4][1:]] + l[5:] if len(l)<12 else l for l in split_lines]) # chain and resid no longer space-separated at high resid.
                     splits = np.argwhere(np.diff(split_lines.T[5].astype(int))>1).flatten() + 1 # identify idx of chain breaks based on resid jump.
                     splits = np.append(splits, len(split_lines))
-                    chains = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+                    chains = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
                     chain_str = ''
                     prev = 0
                     for ch, resid in enumerate(splits): # make new chain string
