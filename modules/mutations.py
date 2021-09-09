@@ -336,8 +336,24 @@ def mutate(method, proto_object, aa_freq):
             mutated_proto_sequences[proto] = seq
 
     elif method == 'pssm':
-        print('PSSM mutation method NOT IMPLMENTED YET. System exiting...')
-        sys.exit()
+        # Mutate positions based on a user-defined PSSM.
+        # PSSM needs to be a .csv of shape L,20
+        # Each vector needs to sum to 1.
+        # AA order.
+
+        aas = np.array(list('ARNDCQEGHILKMFPSTWYV'))
+        with open('pssm.csv', 'r') as f:
+            lines = f.readlines().strip()
+        pssm = np.array([l.split(',') for l in lines], dtype=float)
+
+        for proto, seq in proto_object.current_sequences.items():
+
+            for p in proto_object.mutable_positions[proto]:
+                frequencies = pssm[p]
+                seq = seq[:p] + np.random.choice(aas, p=frequencies) + seq[p+1:]
+
+            mutated_proto_sequences[proto] = seq
+
 
     else:
         print(f'ERROR: sequence mutation method [{method}] does not exist. System exiting...')
