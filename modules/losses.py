@@ -32,7 +32,7 @@ class oligoLoss(Loss):
         super().__init__(oligo_obj=oligo_obj)
         self.oligo = oligo_obj
         self.value = self.compute()
-        self._information_string = f"""This loss object for: {self.name} formats some data from the oligo object.
+        self._information_string = f"""This loss object for: {self.loss_name} formats some data from the oligo object.
         Override this info when inheriting.
         """
         self.value = self.compute()
@@ -45,7 +45,7 @@ class oligoLoss(Loss):
             raise AssertionError(
                 "Compute has been run on a without an oligo. This loss object is just a thin wrapper to read values from the Oligo object"
             )
-        self.value = np.mean(self.oligo.try_prediction_results[self.name])
+        self.value = np.mean(self.oligo.try_prediction_results[self.loss_name])
         return self.value
 
 
@@ -57,7 +57,7 @@ class pLDDTLoss(oligoLoss):
 
         super().__init__(oligo_obj=oligo_obj)
         self.value = self.compute()
-        self._information_string = f"""This loss object for: {self.name} formats some data from the oligo object.
+        self._information_string = f"""This loss object for: {self.loss_name} formats some data from the oligo object.
         NOTE:
         Using this loss will optimise plddt (predicted lDDT) for the sequence(s).
         Early benchmarks suggest that this is not appropriate for forcing the emergence of complexes.
@@ -76,7 +76,7 @@ class ptmLoss(oligoLoss):
 
         super().__init__(oligo_obj=oligo_obj)
         self.value = self.compute()
-        self._information_string = f"""This loss object for: {self.name} formats some data from the oligo object.
+        self._information_string = f"""This loss object for: {self.loss_name} formats some data from the oligo object.
         NOTE:
         Using this loss will optimise ptm (predicted TM-score) for the sequence(s).
         Early benchmarks suggest that while it does force the apparition of inter-chain contacts,
@@ -95,7 +95,7 @@ class paeLoss(oligoLoss):
 
         super().__init__(oligo_obj=oligo_obj)
         self.value = self.compute()
-        self._information_string = f"""This loss object for: {self.name} formats some data from the oligo object.
+        self._information_string = f"""This loss object for: {self.loss_name} formats some data from the oligo object.
         Using this loss will optimise the mean of the pae matrix (predicted alignment error).
         This loss has not been properly benchmarked, but some early results suggest that it might suffer from the same problem as ptm.
         During optimisation, off-digonal contacts (inter-chain) may get optimsed at the expense of the diagonal elements (intra-chain).
@@ -123,7 +123,7 @@ class paeSubMatLoss(Loss):
         super().__init__(oligo_obj=oligo_obj)
         self.oligo = oligo_obj
         self.value = self.compute()
-        self._information_string = f"""This loss object for: {self.name} formats some data from the oligo object.
+        self._information_string = f"""This loss object for: {self.loss_name} formats some data from the oligo object.
         This loss optimises the mean of the pae sub-matrices means.
         The value of the loss will be different to pae in the case of hetero-oligomers that have chains of different lenghts, but identical otherwise.
         The mean of the sub matrices' means is different from the overall mean if the sub matrices don't all have the same shape.
@@ -145,7 +145,7 @@ class paeAsymLoss(oligoLoss):
 
         super().__init__(oligo_obj=oligo_obj)
         self.value = self.compute()
-        self._information_string = f"""This loss object for: {self.name} formats some data from the oligo object.
+        self._information_string = f"""This loss object for: {self.loss_name} formats some data from the oligo object.
         NOTE:
         Using this loss will optimise the mean of the pae matrix (predicted alignment error).
         This loss has not been properly benchmarked, but some early results suggest that it might suffer from the same problem as ptm.
@@ -205,7 +205,7 @@ class separationLoss(Loss):
 
         super().__init__(oligo_obj=oligo_obj)
         self.value = self.compute()
-        self._information_string = f"""This loss object for: {self.name}.
+        self._information_string = f"""This loss object for: {self.loss_name}.
         A geometric term that forces a cyclic symmetry. A PDB is generated, and the distance between the center of mass of adjacent units computed.
         The standard deviation of these neighbour distances is the loss.
         Score is separation dist std: 0+ ,lower is better"""
@@ -228,7 +228,7 @@ class tmAlignLoss(Loss):
         self.template_alignment = user_kwargs["template_alignment"]
         self.temp_out = user_kwargs["temp_out"]
         self.value = self.compute()
-        self._information_string = f"""This loss object for: {self.name}.
+        self._information_string = f"""This loss object for: {self.loss_name}.
         Computes TMalign to a user_provided tempalate
         Score is separation dist std: 0+ ,lower is better"""
 
