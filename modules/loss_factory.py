@@ -13,9 +13,10 @@ class LossFactory:
 
     def get_loss(self, loss_name, **loss_params):
         creator = self._creators.get(loss_name)
+        loss_params["loss_name"] = loss_name
         if creator is None:
-            return Loss(loss_name=loss_name, **loss_params)
-        return creator(loss_name=loss_name, **loss_params)
+            return Loss(**loss_params)
+        return creator(**loss_params)
 
 
 def get_loss_creator(**losses_dict):
