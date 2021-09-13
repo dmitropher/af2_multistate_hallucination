@@ -249,8 +249,8 @@ class dualLoss(weightedLoss):
 
     def __init__(self, oligo_obj=None, weights=None, **user_kwargs):
         super().__init__(
-            pLDDTLoss(oligo_obj=oligo_obj, name="plddt"),
-            ptmLoss(oligo_obj=oligo_obj, name="ptm"),
+            pLDDTLoss(oligo_obj=oligo_obj, loss_name="plddt"),
+            ptmLoss(oligo_obj=oligo_obj, loss_name="ptm"),
             even=True,
             invert=True,
         )
@@ -266,9 +266,9 @@ class dualCyclicLoss(weightedLoss):
 
     def __init__(self, oligo_obj=None, weights=None, **user_kwargs):
         super().__init__(
-            pLDDTLoss(oligo_obj=oligo_obj, name="plddt"),
-            ptmLoss(oligo_obj=oligo_obj, name="ptm"),
-            separationLoss(oligo_obj=oligo_obj, name="separation"),
+            pLDDTLoss(oligo_obj=oligo_obj, loss_name="plddt"),
+            ptmLoss(oligo_obj=oligo_obj, loss_name="ptm"),
+            separationLoss(oligo_obj=oligo_obj, loss_name="separation"),
             even=False,
             invert=True,
             weights={"plddt": 2.0, "ptm": 2.0, "separation": -1.0},
@@ -281,9 +281,11 @@ class dualCyclicLoss(weightedLoss):
 class dualTMAlignLoss(weightedLoss):
     def __init__(self, oligo_obj=None, weights=None, **user_kwargs):
         super().__init__(
-            pLDDTLoss(oligo_obj=oligo_obj, name="plddt"),
-            ptmLoss(oligo_obj=oligo_obj, name="ptm"),
-            tmAlignLoss(oligo_obj=oligo_obj, name="tmAlign", **user_kwargs),
+            pLDDTLoss(oligo_obj=oligo_obj, loss_name="plddt"),
+            ptmLoss(oligo_obj=oligo_obj, loss_name="ptm"),
+            tmAlignLoss(
+                oligo_obj=oligo_obj, loss_name="tmAlign", **user_kwargs
+            ),
             even=True,
             invert=True,
         )

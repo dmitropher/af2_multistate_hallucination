@@ -85,7 +85,7 @@ class CombinedLoss(Loss):
     """
 
     def __init__(self, *losses, **combine_params):
-        name = combine_params.get("name")
+        name = combine_params.get("loss_name")
         self.loss_name = "combined_loss" if name is None else name
         self.losses = losses
         self.value = None
@@ -107,5 +107,5 @@ class CombinedLoss(Loss):
                 for k, v in vals_dict.items():
                     all_vals[k] = v
             except AttributeError:
-                all_vals[loss.name] = loss.value
+                all_vals[loss.loss_name] = loss.value
         return all_vals
