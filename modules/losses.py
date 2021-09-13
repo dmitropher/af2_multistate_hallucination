@@ -363,9 +363,8 @@ def compute_loss(loss_names, oligo, args, loss_weights):
         print(f"{args_dict}")
         print(f"{current_loss}")
         loss_type, loss_params = current_loss
-        score = get_loss(
-            loss_type, oligo_obj=oligo, **args_dict, **loss_params
-        ).score()
+        args_dict["loss_params"] = loss_params
+        score = get_loss(loss_type, oligo_obj=oligo, **args_dict).score()
 
         elif loss_type == 'aspect_ratio':
             # NOTE:
