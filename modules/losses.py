@@ -55,10 +55,10 @@ class oligoLoss(Loss):
     Requires oligo as positional argument
     """
 
-    def __init__(self, oligo=None, **user_kwargs):
+    def __init__(self, oligo_obj=None, **user_kwargs):
 
-        super().__init__(oligo=oligo)
-        self.oligo = oligo
+        super().__init__(oligo_obj=oligo_obj)
+        self.oligo = oligo_obj
         self.value = self.compute()
         self._information_string = f"""This loss object for: {self.name} formats some data from the oligo object.
         Override this info when inheriting.
@@ -81,9 +81,9 @@ class pLDDTLoss(oligoLoss):
     """
     """
 
-    def __init__(self, oligo=None, **user_kwargs):
+    def __init__(self, oligo_obj=None, **user_kwargs):
 
-        super().__init__(oligo=oligo)
+        super().__init__(oligo_obj=oligo_obj)
         self.value = self.compute()
         self._information_string = f"""This loss object for: {self.name} formats some data from the oligo object.
         NOTE:
@@ -100,9 +100,9 @@ class ptmLoss(oligoLoss):
     """
     """
 
-    def __init__(self, oligo=None, **user_kwargs):
+    def __init__(self, oligo_obj=None, **user_kwargs):
 
-        super().__init__(oligo=oligo)
+        super().__init__(oligo_obj=oligo_obj)
         self.value = self.compute()
         self._information_string = f"""This loss object for: {self.name} formats some data from the oligo object.
         NOTE:
@@ -119,9 +119,9 @@ class paeLoss(oligoLoss):
     """
     """
 
-    def __init__(self, oligo=None, **user_kwargs):
+    def __init__(self, oligo_obj=None, **user_kwargs):
 
-        super().__init__(oligo=oligo)
+        super().__init__(oligo_obj=oligo_obj)
         self.value = self.compute()
         self._information_string = f"""This loss object for: {self.name} formats some data from the oligo object.
         Using this loss will optimise the mean of the pae matrix (predicted alignment error).
@@ -146,10 +146,10 @@ class paeSubMatLoss(Loss):
     """
     """
 
-    def __init__(self, oligo=None, **user_kwargs):
+    def __init__(self, oligo_obj=None, **user_kwargs):
 
-        super().__init__(oligo=oligo)
-        self.oligo = oligo
+        super().__init__(oligo_obj=oligo_obj)
+        self.oligo = oligo_obj
         self.value = self.compute()
         self._information_string = f"""This loss object for: {self.name} formats some data from the oligo object.
         This loss optimises the mean of the pae sub-matrices means.
@@ -169,9 +169,9 @@ class paeAsymLoss(oligoLoss):
     """
     """
 
-    def __init__(self, oligo=None, **user_kwargs):
+    def __init__(self, oligo_obj=None, **user_kwargs):
 
-        super().__init__(oligo=oligo)
+        super().__init__(oligo_obj=oligo_obj)
         self.value = self.compute()
         self._information_string = f"""This loss object for: {self.name} formats some data from the oligo object.
         NOTE:
@@ -229,9 +229,9 @@ class separationLoss(Loss):
     Loss based on separation of units in the oligo (standard deviation)
     """
 
-    def __init__(self, oligo=None, **user_kwargs):
+    def __init__(self, oligo_obj=None, **user_kwargs):
 
-        super().__init__(oligo=oligo)
+        super().__init__(oligo_obj=oligo_obj)
         self.value = self.compute()
         self._information_string = f"""This loss object for: {self.name}.
         A geometric term that forces a cyclic symmetry. A PDB is generated, and the distance between the center of mass of adjacent units computed.
@@ -248,9 +248,9 @@ class tmAlignLoss(Loss):
     Loss based on separation of units in the oligo (standard deviation)
     """
 
-    def __init__(self, oligo=None, **user_kwargs):
+    def __init__(self, oligo_obj=None, **user_kwargs):
 
-        super().__init__(oligo=oligo)
+        super().__init__(oligo_obj=oligo_obj)
         self.value = self.compute()
         self.template = user_kwargs["template"]
         self.template_alignment = user_kwargs["template_alignment"]
@@ -275,10 +275,10 @@ class dualLoss(weightedLoss):
     Loss invoked by the 'dual' option
     """
 
-    def __init__(self, oligo=None, weights=None, **user_kwargs):
+    def __init__(self, oligo_obj=None, weights=None, **user_kwargs):
         super().__init__(
-            pLDDTLoss(oligo=oligo, name="plddt"),
-            ptmLoss(oligo=oligo, name="ptm"),
+            pLDDTLoss(oligo_obj=oligo_obj, name="plddt"),
+            ptmLoss(oligo_obj=oligo_obj, name="ptm"),
             even=True,
             invert=True,
         )
@@ -292,11 +292,11 @@ class dualCyclicLoss(weightedLoss):
     Loss invoked by the 'dual_cyclic' option
     """
 
-    def __init__(self, oligo=None, weights=None, **user_kwargs):
+    def __init__(self, oligo_obj=None, weights=None, **user_kwargs):
         super().__init__(
-            pLDDTLoss(oligo=oligo, name="plddt"),
-            ptmLoss(oligo=oligo, name="ptm"),
-            separationLoss(oligo=oligo, name="separation"),
+            pLDDTLoss(oligo_obj=oligo_obj, name="plddt"),
+            ptmLoss(oligo_obj=oligo_obj, name="ptm"),
+            separationLoss(oligo_obj=oligo_obj, name="separation"),
             even=False,
             invert=True,
             weights={"plddt": 2.0, "ptm": 2.0, "separation": -1.0},
@@ -307,11 +307,11 @@ class dualCyclicLoss(weightedLoss):
 
 
 class dualTMAlignLoss(weightedLoss):
-    def __init__(self, oligo=None, weights=None, **user_kwargs):
+    def __init__(self, oligo_obj=None, weights=None, **user_kwargs):
         super().__init__(
-            pLDDTLoss(oligo=oligo, name="plddt"),
-            ptmLoss(oligo=oligo, name="ptm"),
-            tmAlignLoss(oligo=oligo, name="tmAlign", **user_kwargs),
+            pLDDTLoss(oligo_obj=oligo_obj, name="plddt"),
+            ptmLoss(oligo_obj=oligo_obj, name="ptm"),
+            tmAlignLoss(oligo_obj=oligo_obj, name="tmAlign", **user_kwargs),
             even=True,
             invert=True,
         )
@@ -360,7 +360,7 @@ def compute_loss(loss_names, oligo, args, loss_weights):
     args_dict = vars(args)
     for loss_idx, current_loss in enumerate(loss_names):
         print(f"{args_dict}")
-        score = get_loss(current_loss, oligo=oligo, **args_dict).score()
+        score = get_loss(current_loss, oligo_obj=oligo, **args_dict).score()
 
         elif loss_type == 'aspect_ratio':
             # NOTE:
