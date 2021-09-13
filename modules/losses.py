@@ -334,7 +334,10 @@ def compute_loss(loss_names, oligo, args, loss_weights):
     for loss_idx, current_loss in enumerate(loss_names):
         print(f"{args_dict}")
         print(f"{current_loss}")
-        score = get_loss(current_loss, oligo_obj=oligo, **args_dict).score()
+        loss_type, loss_params = current_loss
+        score = get_loss(
+            loss_type, oligo_obj=oligo, **args_dict, **loss_params
+        ).score()
 
         scores.append(score)
 
