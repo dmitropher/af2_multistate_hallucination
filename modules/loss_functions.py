@@ -14,7 +14,6 @@ from alphafold.common import protein
 import subprocess
 
 from file_io import default_dssp_dict
-from loss_factory import LossFuncManager
 
 
 ######################################################
