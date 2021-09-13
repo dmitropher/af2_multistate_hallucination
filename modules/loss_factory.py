@@ -32,7 +32,7 @@ class Loss(object):
     """
 
     def __init__(self, **loss_params):
-        name = loss_params.get("name")
+        name = loss_params.get("loss_name")
         self.loss_name = "loss" if name is None else name
         self._loss_params = loss_params
         self.value = None
