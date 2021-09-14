@@ -256,9 +256,7 @@ class maxLoss(CombinedLoss):
         returns the biggest of the input losses"""
 
     def compute(self):
-        self.value = max(
-            loss.value * self.weights[loss.loss_name] for loss in self.losses
-        )
+        self.value = max(loss.value for loss in self.losses)
         return self.value
 
     def score(self):
@@ -284,9 +282,7 @@ class minLoss(CombinedLoss):
         returns the smallest of the input losses"""
 
     def compute(self):
-        self.value = min(
-            loss.value * self.weights[loss.loss_name] for loss in self.losses
-        )
+        self.value = min(loss.value for loss in self.losses)
         return self.value
 
     def score(self):
@@ -444,8 +440,7 @@ class minDSSPptmlDDT(minLoss):
             invert=True,
             **user_kwargs,
         )
-        self._information_string = f"""This loss jointly optimises tmalign to template,ptm and plddt (equal weights).
-        It attemps to combine the best of both worlds -- getting folded structures that are in contact which match the original model"""
+        self._information_string = f"""this loss takes the worst loss of the three: ptm, plddt, frac dssp, ensuring the trajectory only walks on all "ok" paths """
 
 
 global_losses_dict = {
