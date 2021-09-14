@@ -338,10 +338,8 @@ class fracDSSPLoss(Loss):
         dummy.close()
         actual = {"E": frac_beta, "H": frac_alpha, "O": frac_other}
         chosen_fracs = self.desired_dssp.keys()
-        self.value = 1 - sum(
-            (abs(actual[key] - self.desired_dssp[key]) ** 2)
-            / (len(chosen_fracs))
-            for key in chosen_fracs
+        self.value = 1 - max(
+            (abs(actual[key] - self.desired_dssp[key])) for key in chosen_fracs
         )
         return self.value
 
