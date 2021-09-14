@@ -29,7 +29,7 @@ class oligoLoss(Loss):
 
     def __init__(self, oligo_obj=None, **user_kwargs):
 
-        super().__init__(oligo_obj=oligo_obj)
+        super().__init__(oligo_obj=oligo_obj, **user_kwargs)
         self.oligo = oligo_obj
         self.value = self.compute()
         self._information_string = f"""This loss object for: {self.loss_name} formats some data from the oligo object.
