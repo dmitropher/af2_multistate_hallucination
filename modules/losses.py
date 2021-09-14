@@ -70,7 +70,6 @@ class oligoLoss(Loss):
     """
 
     def __init__(self, oligo_obj=None, **user_kwargs):
-        print(f"user_kwargs: {user_kwargs}")
         super().__init__(oligo_obj=oligo_obj, **user_kwargs)
         self.oligo = oligo_obj
         self.value = self.compute()
@@ -336,8 +335,9 @@ class fracDSSPLoss(Loss):
 
     def compute(self):
         dummy = dummy_pdbfile(self.oligo)
+        dummy_path = dummy.name
         frac_beta, frac_alpha, frac_other = calculate_dssp_fractions(
-            dssp_wrapper(dummy)
+            dssp_wrapper(dummy_path)
         )
         dummy.close()
         actual = {"E": frac_beta, "H": frac_alpha, "O": frac_other}
