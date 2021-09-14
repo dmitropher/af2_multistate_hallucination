@@ -2,10 +2,6 @@ import sys
 
 import numpy as np
 
-from copy import deepcopy
-
-# dssp loss imports
-from Bio.PDB.DSSP import DSSP
 from Bio.PDB.DSSP import dssp_dict_from_pdb_file
 
 sys.path.append("/projects/ml/alphafold/alphafold_git/")

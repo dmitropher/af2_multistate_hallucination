@@ -435,7 +435,11 @@ class minDSSPptmlDDT(minLoss):
         super().__init__(
             pLDDTLoss(oligo_obj=oligo_obj, loss_name="plddt"),
             ptmLoss(oligo_obj=oligo_obj, loss_name="ptm"),
-            fracDSSPLoss(oligo_obj=oligo_obj, loss_name="dssp", **user_kwargs),
+            fracDSSPLoss(
+                oligo_obj=oligo_obj,
+                loss_name="dssp",
+                loss_params=user_kwargs["loss_params"],
+            ),
             invert=True,
             **user_kwargs,
         )
