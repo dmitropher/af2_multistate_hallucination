@@ -55,7 +55,7 @@ class pLDDTLoss(oligoLoss):
 
     def __init__(self, oligo_obj=None, **user_kwargs):
 
-        super().__init__(oligo_obj=oligo_obj)
+        super().__init__(oligo_obj=oligo_obj, **user_kwargs)
         self.value = self.compute()
         self._information_string = f"""This loss object for: {self.loss_name} formats some data from the oligo object.
         NOTE:
@@ -74,7 +74,7 @@ class ptmLoss(oligoLoss):
 
     def __init__(self, oligo_obj=None, **user_kwargs):
 
-        super().__init__(oligo_obj=oligo_obj)
+        super().__init__(oligo_obj=oligo_obj, **user_kwargs)
         self.value = self.compute()
         self._information_string = f"""This loss object for: {self.loss_name} formats some data from the oligo object.
         NOTE:
@@ -93,7 +93,7 @@ class paeLoss(oligoLoss):
 
     def __init__(self, oligo_obj=None, **user_kwargs):
 
-        super().__init__(oligo_obj=oligo_obj)
+        super().__init__(oligo_obj=oligo_obj, **user_kwargs)
         self.value = self.compute()
         self._information_string = f"""This loss object for: {self.loss_name} formats some data from the oligo object.
         Using this loss will optimise the mean of the pae matrix (predicted alignment error).
@@ -120,7 +120,7 @@ class paeSubMatLoss(Loss):
 
     def __init__(self, oligo_obj=None, **user_kwargs):
 
-        super().__init__(oligo_obj=oligo_obj)
+        super().__init__(oligo_obj=oligo_obj, **user_kwargs)
         self.oligo = oligo_obj
         self.value = self.compute()
         self._information_string = f"""This loss object for: {self.loss_name} formats some data from the oligo object.
@@ -143,7 +143,7 @@ class paeAsymLoss(oligoLoss):
 
     def __init__(self, oligo_obj=None, **user_kwargs):
 
-        super().__init__(oligo_obj=oligo_obj)
+        super().__init__(oligo_obj=oligo_obj, **user_kwargs)
         self.value = self.compute()
         self._information_string = f"""This loss object for: {self.loss_name} formats some data from the oligo object.
         NOTE:
@@ -167,7 +167,7 @@ class weightedLoss(CombinedLoss):
     def __init__(
         self, *losses, even=True, invert=True, weights=None, **user_kwargs
     ):
-        super().__init__(*losses)
+        super().__init__(*losses, **user_kwargs)
         self.even = even
         self.invert = invert
         self.weights = weights
@@ -203,7 +203,7 @@ class separationLoss(Loss):
 
     def __init__(self, oligo_obj=None, **user_kwargs):
 
-        super().__init__(oligo_obj=oligo_obj)
+        super().__init__(oligo_obj=oligo_obj, **user_kwargs)
         self.value = self.compute()
         self._information_string = f"""This loss object for: {self.loss_name}.
         A geometric term that forces a cyclic symmetry. A PDB is generated, and the distance between the center of mass of adjacent units computed.
@@ -222,7 +222,7 @@ class tmAlignLoss(Loss):
 
     def __init__(self, oligo_obj=None, **user_kwargs):
 
-        super().__init__(oligo_obj=oligo_obj)
+        super().__init__(oligo_obj=oligo_obj, **user_kwargs)
         self.value = self.compute()
         self.template = user_kwargs["template"]
         self.template_alignment = user_kwargs["template_alignment"]
@@ -253,6 +253,7 @@ class dualLoss(weightedLoss):
             ptmLoss(oligo_obj=oligo_obj, loss_name="ptm"),
             even=True,
             invert=True,
+            **user_kwargs,
         )
         self._information_string = f"""This loss jointly optimises ptm and plddt (equal weights).
         It attemps to combine the best of both worlds -- getting folded structures that are in contact.
@@ -272,6 +273,7 @@ class dualCyclicLoss(weightedLoss):
             even=False,
             invert=True,
             weights={"plddt": 2.0, "ptm": 2.0, "separation": -1.0},
+            **user_kwargs,
         )
         self._information_string = f"""This loss jointly optimises ptm and plddt (equal weights).
         It attemps to combine the best of both worlds -- getting folded structures that are in contact.
@@ -288,6 +290,7 @@ class dualTMAlignLoss(weightedLoss):
             ),
             even=True,
             invert=True,
+            **user_kwargs,
         )
         self._information_string = f"""This loss jointly optimises tmalign to template,ptm and plddt (equal weights).
         It attemps to combine the best of both worlds -- getting folded structures that are in contact which match the original model"""
