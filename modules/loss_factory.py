@@ -14,7 +14,6 @@ class LossFactory:
     def get_loss(self, loss_name, **loss_params):
         creator = self._creators.get(loss_name)
         loss_params["loss_name"] = loss_name
-        print(f"{loss_params}")
         if creator is None:
             return Loss(**loss_params)
         return creator(**loss_params)
@@ -35,7 +34,9 @@ class Loss(object):
 
     def __init__(self, **loss_params):
         name = loss_params.get("loss_name")
-        self.loss_name = "loss" if name is None else name
+        print(f"{loss_params}")
+        print(f"{name}")
+        self.loss_name = "loss" if (name is None) else name
         self._loss_params = loss_params
         self.value = None
         self._information_string = """This loss object reports some information about inputs given.
