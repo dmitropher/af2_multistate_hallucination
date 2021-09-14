@@ -289,13 +289,17 @@ def get_args():
 
             for curr_loss_param in loss_arguments.strip(";").split(";"):
                 if "[" in curr_loss_param:
-                    raise NotImplemented(
+                    raise NotImplementedError(
                         "loss configfile NOT IMPLEMENTED YET."
                     )
 
                 else:
                     # assuming all parameters are number
-                    loss_parameters.append(float(curr_loss_param))
+                    try:
+                        loss_parameters.append(float(curr_loss_param))
+                    except ValueError:
+                        loss_parameters.append(curr_loss_param)
+
         else:
             loss_name = str(curr_loss_str)
 
