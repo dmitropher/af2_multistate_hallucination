@@ -38,7 +38,6 @@ class oligoLoss(Loss):
     """
 
     def __init__(self, oligo_obj=None, **user_kwargs):
-        print(f"user_kwargs: {user_kwargs}")
         super().__init__(oligo_obj=oligo_obj, **user_kwargs)
         self.oligo = oligo_obj
         self.value = self.compute()
@@ -225,9 +224,7 @@ class maxLoss(CombinedLoss):
         returns the biggest of the input losses"""
 
     def compute(self):
-        self.value = max(
-            loss.value * self.weights[loss.loss_name] for loss in self.losses
-        )
+        self.value = max(loss.value for loss in self.losses)
         return self.value
 
     def score(self):
@@ -253,9 +250,7 @@ class minLoss(CombinedLoss):
         returns the smallest of the input losses"""
 
     def compute(self):
-        self.value = min(
-            loss.value * self.weights[loss.loss_name] for loss in self.losses
-        )
+        self.value = min(loss.value for loss in self.losses)
         return self.value
 
     def score(self):
@@ -296,6 +291,7 @@ class fracDSSPLoss(Loss):
             raise AttributeError(
                 "Fractions dssp desired can not sum to greater than 1"
             )
+        self.oligo = oligo_obj
         self.value = self.compute()
         self._information_string = f"""This loss object for: {self.loss_name}.
         This loss computes the deviation from the desired fraction dssp
@@ -303,8 +299,9 @@ class fracDSSPLoss(Loss):
 
     def compute(self):
         dummy = dummy_pdbfile(self.oligo)
+        dummy_path = dummy.name
         frac_beta, frac_alpha, frac_other = calculate_dssp_fractions(
-            dssp_wrapper(dummy)
+            dssp_wrapper(dummy_path)
         )
         dummy.close()
         actual = {"E": frac_beta, "H": frac_alpha, "O": frac_other}
@@ -403,12 +400,15 @@ class minDSSPptmlDDT(minLoss):
         super().__init__(
             pLDDTLoss(oligo_obj=oligo_obj, loss_name="plddt"),
             ptmLoss(oligo_obj=oligo_obj, loss_name="ptm"),
-            fracDSSPLoss(oligo_obj=oligo_obj, loss_name="dssp", **user_kwargs),
+            fracDSSPLoss(
+                oligo_obj=oligo_obj,
+                loss_name="dssp",
+                loss_params=user_kwargs["loss_params"],
+            ),
             invert=True,
             **user_kwargs,
         )
-        self._information_string = f"""This loss jointly optimises tmalign to template,ptm and plddt (equal weights).
-        It attemps to combine the best of both worlds -- getting folded structures that are in contact which match the original model"""
+        self._information_string = f"""this loss takes the worst loss of the three: ptm, plddt, frac dssp, ensuring the trajectory only walks on all "ok" paths """
 
 
 global_losses_dict = {
