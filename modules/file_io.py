@@ -1,6 +1,7 @@
 import os
 import io
 import sys
+import tempfile
 
 sys.path.append("/projects/ml/alphafold/alphafold_git/")
 from alphafold.common import protein
@@ -18,4 +19,6 @@ def dummy_pdbfile(oligo):
     """
     returns a StringIO (in lieu of a file) from an "oligo"
     """
-    return io.StringIO(protein.to_pdb(oligo.try_unrelaxed_structure))
+    tempfile = tempfile.NamedTemporaryFile()
+    tempfile.write(protein.to_pdb(oligo.try_unrelaxed_structure))
+    return tempfile
