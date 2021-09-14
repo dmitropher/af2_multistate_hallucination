@@ -2,6 +2,7 @@
 
 import numpy as np
 <<<<<<< HEAD
+<<<<<<< HEAD
 import sys; sys.path.append('/projects/ml/alphafold/alphafold_git/')
 from alphafold.common import protein
 # dssp loss imports
@@ -13,9 +14,22 @@ from scipy import linalg
 =======
 import sys
 >>>>>>> first commit for factory and resources
+=======
+
+# import sys
+>>>>>>> added dssp maybe
 
 from loss_factory import Loss, CombinedLoss, get_loss_creator
-from loss_functions import pae_sub_mat, pae_asym, get_separation_std, tm_score
+from loss_functions import (
+    pae_sub_mat,
+    pae_asym,
+    get_separation_std,
+    tm_score,
+    dssp_wrapper,
+    calculate_dssp_fractions,
+)
+
+from file_io import dummy_pdbfile
 
 ######################################################
 # LOSS FACTORY FRAMEWORK
@@ -224,6 +238,62 @@ class weightedLoss(CombinedLoss):
         return 1 - self.value if self.invert else self.value
 
 
+class maxLoss(CombinedLoss):
+    """
+    A combined loss which takes the biggest loss of the group
+
+    inverts the sum by default ( score = 1 - max(*weighted_losses))
+    """
+
+    def __init__(self, *losses, invert=True, **user_kwargs):
+        super().__init__(*losses, **user_kwargs)
+        self.invert = invert
+
+        self.value = self.compute()
+        self._information_string = f"""This loss object only keeps the biggest loss.
+        Can be used with the invert option to output 1-max(*losses) (default is invert).
+        included losses:
+        {self.get_base_values().keys()}
+        returns the biggest of the input losses"""
+
+    def compute(self):
+        self.value = max(
+            loss.value * self.weights[loss.loss_name] for loss in self.losses
+        )
+        return self.value
+
+    def score(self):
+        return 1 - self.value if self.invert else self.value
+
+
+class minLoss(CombinedLoss):
+    """
+    A combined loss which outputs the smallest loss of the inputs
+
+    inverts the min by default ( score = 1 - min(weighted_losses))
+    """
+
+    def __init__(self, *losses, invert=True, **user_kwargs):
+        super().__init__(*losses, **user_kwargs)
+        self.invert = invert
+
+        self.value = self.compute()
+        self._information_string = f"""This loss object only keeps the biggest loss.
+        Can be used with the invert option to output 1-min(*losses) (default is invert!).
+        included losses:
+        {self.get_base_values().keys()}
+        returns the smallest of the input losses"""
+
+    def compute(self):
+        self.value = min(
+            loss.value * self.weights[loss.loss_name] for loss in self.losses
+        )
+        return self.value
+
+    def score(self):
+        return 1 - self.value if self.invert else self.value
+
+
 class separationLoss(Loss):
     """
     Loss based on separation of units in the oligo (standard deviation)
@@ -240,6 +310,42 @@ class separationLoss(Loss):
 
     def compute(self):
         self.value = get_separation_std(self.oligo)
+        return self.value
+
+
+class fracDSSPLoss(Loss):
+    """
+    Loss based on separation of units in the oligo (standard deviation)
+    """
+
+    def __init__(self, oligo_obj=None, **user_kwargs):
+
+        super().__init__(oligo_obj=oligo_obj, **user_kwargs)
+        config = user_kwargs["loss_params"]
+        dssp_reference = {data[0]: float(data[1:]) for data in config}
+        self.desired_dssp = dssp_reference
+        if sum(self.desired_dssp.keys()) > 1:
+            raise AttributeError(
+                "Fractions dssp desired can not sum to greater than 1"
+            )
+        self.value = self.compute()
+        self._information_string = f"""This loss object for: {self.loss_name}.
+        This loss computes the deviation from the desired fraction dssp
+        ranges 0-1 higher is better, near 0 is very very bad"""
+
+    def compute(self):
+        dummy = dummy_pdbfile(self.oligo)
+        frac_beta, frac_alpha, frac_other = calculate_dssp_fractions(
+            dssp_wrapper(dummy)
+        )
+        dummy.close()
+        actual = {"E": frac_beta, "H": frac_alpha, "O": frac_other}
+        chosen_fracs = self.desired_dssp.keys()
+        self.value = 1 - sum(
+            (abs(actual[key] - self.desired_dssp[key]) ** 2)
+            / (len(chosen_fracs))
+            for key in chosen_fracs
+        )
         return self.value
 
 
@@ -324,6 +430,19 @@ class dualTMAlignLoss(weightedLoss):
         It attemps to combine the best of both worlds -- getting folded structures that are in contact which match the original model"""
 
 
+class minDSSPptmlDDT(minLoss):
+    def __init__(self, oligo_obj=None, **user_kwargs):
+        super().__init__(
+            pLDDTLoss(oligo_obj=oligo_obj, loss_name="plddt"),
+            ptmLoss(oligo_obj=oligo_obj, loss_name="ptm"),
+            fracDSSPLoss(oligo_obj=oligo_obj, loss_name="dssp", **user_kwargs),
+            invert=True,
+            **user_kwargs,
+        )
+        self._information_string = f"""This loss jointly optimises tmalign to template,ptm and plddt (equal weights).
+        It attemps to combine the best of both worlds -- getting folded structures that are in contact which match the original model"""
+
+
 global_losses_dict = {
     "plddt": pLDDTLoss,
     "ptm": ptmLoss,
@@ -332,6 +451,7 @@ global_losses_dict = {
     "pae_asym": paeAsymLoss,
     "dual": dualLoss,
     "separation": separationLoss,
+    "min_dssp_ptm_lddt": minDSSPptmlDDT,
 }
 
 
