@@ -28,7 +28,7 @@ class oligoLoss(Loss):
     """
 
     def __init__(self, oligo_obj=None, **user_kwargs):
-
+        print(f"user_kwargs: {user_kwargs}")
         super().__init__(oligo_obj=oligo_obj, **user_kwargs)
         self.oligo = oligo_obj
         self.value = self.compute()
@@ -332,10 +332,7 @@ def compute_loss(loss_names, oligo, args, loss_weights):
     scores = []
     # iterate over all losses
     args_dict = vars(args)
-    print(f"{loss_names}")
     for loss_idx, current_loss in enumerate(loss_names):
-        print(f"{args_dict}")
-        print(f"{current_loss}")
         loss_type, loss_params = current_loss
         args_dict["loss_params"] = loss_params
         score = get_loss(loss_type, oligo_obj=oligo, **args_dict).score()
