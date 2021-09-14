@@ -319,7 +319,7 @@ class fracDSSPLoss(Loss):
         config = user_kwargs["loss_params"]
         dssp_reference = {data[0]: float(data[1:]) for data in config}
         self.desired_dssp = dssp_reference
-        if sum(self.desired_dssp.keys()) > 1:
+        if sum(self.desired_dssp.values()) > 1:
             raise AttributeError(
                 "Fractions dssp desired can not sum to greater than 1"
             )
