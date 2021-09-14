@@ -296,6 +296,7 @@ class fracDSSPLoss(Loss):
             raise AttributeError(
                 "Fractions dssp desired can not sum to greater than 1"
             )
+        self.oligo = oligo_obj
         self.value = self.compute()
         self._information_string = f"""This loss object for: {self.loss_name}.
         This loss computes the deviation from the desired fraction dssp
