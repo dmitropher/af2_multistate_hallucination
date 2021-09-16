@@ -30,7 +30,8 @@ def add_default_oligo_scores(score_container, name, oligo):
     score_container.add_score(Score(name=f"loss_{name}", value=oligo.try_loss))
     score_container.add_score(
         Score(
-            name=f"plddt_{name}", value=oligo.try_prediction_results["plddt"]
+            name=f"plddt_{name}",
+            value=np.mean(oligo.try_prediction_results["plddt"]),
         )
     )
     score_container.add_score(
@@ -39,7 +40,9 @@ def add_default_oligo_scores(score_container, name, oligo):
     score_container.add_score(
         Score(
             name=f"pae_{name}",
-            value=oligo.try_prediction_results["predicted_aligned_error"],
+            value=np.mean(
+                oligo.try_prediction_results["predicted_aligned_error"]
+            ),
         )
     )
 
@@ -64,7 +67,9 @@ def add_default_scores(
     score_container.add_score(
         Score(
             name=f"loss",
-            value=np.mean([oligo.try_loss for oligo in oligomers.values()])
+            value=np.mean(
+                np.array([oligo.try_loss for oligo in oligomers.values()])
+            )
             * oligo_weights_normalized,
         )
     )
