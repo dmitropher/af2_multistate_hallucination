@@ -33,4 +33,6 @@ def dummy_pdbfile(oligo):
     """
     temp = tempfile.NamedTemporaryFile(mode="w+")
     temp.write(protein.to_pdb(oligo.try_unrelaxed_structure))
+    temp.flush()
+    temp.seek(0)
     return temp
