@@ -77,7 +77,7 @@ class Loss(object):
         return self._information_string
 
     def get_base_values(self):
-        return {self.name: self.value}
+        return {self.loss_name: self.value}
 
 
 class CombinedLoss(Loss):
