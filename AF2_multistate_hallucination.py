@@ -19,15 +19,23 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 
 # TODO: fix path issues
 sys.path.append(script_dir + "/modules/")  # import modules
+sys.path.append(script_dir)  # import util
 from arg_parser import get_args
 
 from mutations import mutate, select_positions
-from af2_net import amber_relax, protein, predict_structure, setup_models
+from af2_net import predict_structure, setup_models
 from losses import compute_loss
 from protein import Protomers, Oligomer
-from scoring import ScoreContainer
+from scoring import ScoreContainer  # , Score
 
 from file_io import default_aa_freq
+
+from af2_multistate_util import (
+    write_to_score_file,
+    oligo_to_pdb_file,
+    add_default_scores,
+    add_default_oligo_scores,
+)
 
 
 ##################################
@@ -37,10 +45,13 @@ from file_io import default_aa_freq
 args = get_args()
 print("#", args)
 
+sep = " "
+
 os.makedirs(
     f"{args.out}_models", exist_ok=True
 )  # where all the outputs will go.
-
+out_dir = f"{args.out}_models/"
+out_basename = f"{os.path.splitext(os.path.basename(args.out))[0]}"
 # Notes.
 print(f"> Git commit: {args.commit}")
 if args.single_chain == True:
@@ -132,16 +143,16 @@ model_runners = setup_models(
 
 # Start score file.
 
-with open(
-    f"{args.out}_models/{os.path.splitext(os.path.basename(args.out))[0]}.out",
-    "w",
-) as f:
-    print_str = f"# {args}\n"
-    print_str += "step accepted temperature mutations loss plddt ptm pae"
-    for oligo in oligomers.keys():
-        print_str += f" sequence_{oligo} loss_{oligo} plddt_{oligo} ptm_{oligo} pae_{oligo}"
-    print_str += "\n"
-    f.write(print_str)
+# with open(
+#     f"{args.out}_models/{os.path.splitext(os.path.basename(args.out))[0]}.out",
+#     "w",
+# ) as f:
+#     print_str = f"# {args}\n"
+#     print_str += "step accepted temperature mutations loss plddt ptm pae"
+#     for oligo in oligomers.keys():
+#         print_str += f" sequence_{oligo} loss_{oligo} plddt_{oligo} ptm_{oligo} pae_{oligo}"
+#     print_str += "\n"
+#     f.write(print_str)
 
 # Save args as a json so you can load them with a wrapper easily
 # TODO: enhancement, maybe add --args-file ?
@@ -159,9 +170,15 @@ M = np.linspace(
     int(Mi), int(Mf), args.steps
 )  # stepped linear decay of the mutation rate
 
+# named scores for the score file to report
+default_scores = ["plddt", "ptm", "predicted_aligned_error"]
+initial_score_container = ScoreContainer()
 current_loss = np.inf
 rolling_window = []
 rolling_window_width = 100
+oligo_weights_normalized = np.array(args.oligo_weights) / np.sum(
+    args.oligo_weights
+)
 print("-" * 100)
 print("Starting...")
 for name, oligo in oligomers.items():
@@ -171,18 +188,51 @@ for name, oligo in oligomers.items():
         model_runners[name],
         random_seed=np.random.randint(42),
     )  # run AlphaFold2 prediction
+
     oligo.init_prediction(af2_prediction)  # assign
+    # this func implicitely edits the score container, adding arbitrary scores based on losses used
     loss = compute_loss(
-        args.loss, oligo, args, args.loss_weights
+        args.loss,
+        oligo,
+        args,
+        args.loss_weights,
+        score_container=initial_score_container,
     )  # calculate the loss
     oligo.init_loss(loss)  # assign
     # try_losses.append(loss)  # increment global loss
-    write_pdb()
-    write_to_score_file()
+
+    # Pull default scores for this oligo name
+    add_default_oligo_scores(initial_score_container, name, oligo)
+    oligo_to_pdb_file(oligo, 0, out_dir, out_basename, args)
+add_default_scores(
+    initial_score_container,
+    0,
+    True,
+    args.T_init,
+    oligomers,
+    oligo_weights_normalized,
+    args,
+)
+key_list = list(initial_score_container.get_keys())
+
+# header_string = ""
+# for key in key_list:
+#     header_string += f"{key}{sep}"
+# header_string += "\n"
+# # write the score file header
+# with open(
+#     f"{args.out}_models/{os.path.splitext(os.path.basename(args.out))[0]}.out",
+#     "w",
+# ) as f:
+#     f.write(header_string)
+write_to_score_file(
+    out_dir, out_basename, initial_score_container, key_list=None, sep=" "
+)
+
 for i in range(1, args.steps):
 
     # make a score container for the run
-    score_container = ScoreContainer(**aaaaaahhhhh)
+    score_container = ScoreContainer()
     if (
         args.tolerance is not None and i > rolling_window_width
     ):  # check if change in loss falls under the tolerance threshold for terminating the simulation.
@@ -228,15 +278,15 @@ for i in range(1, args.steps):
             )
         )  # run AlphaFold2 prediction
         loss = compute_loss(
-            args.loss, oligo, args, args.loss_weights
+            args.loss,
+            oligo,
+            args,
+            args.loss_weights,
+            score_container=score_container,
         )  # calculate the loss for that oligomer
         oligo.assign_loss(loss)  # assign the loss to the object (for tracking)
         try_losses.append(loss)  # increment the global loss
-
-    # Normalize oligo weights vector.
-    oligo_weights_normalized = np.array(args.oligo_weights) / np.sum(
-        args.oligo_weights
-    )
+        add_default_oligo_scores(score_container, name, oligo)
 
     # Global loss is the weighted average of the individual oligomer losses.
     try_loss = np.mean(np.array(try_losses) * oligo_weights_normalized)
@@ -317,6 +367,7 @@ for i in range(1, args.steps):
             if np.random.uniform(0, 1) < np.exp(-delta / T):
                 accepted = True
 
+<<<<<<< HEAD
                 print(
                     f"Step {i:05d}: change accepted despite not improving the loss >> LOSS {current_loss:2.3f} --> {try_loss:2.3f}"
                 )
@@ -522,6 +573,24 @@ for i in range(1, args.steps):
         score_string += f'{np.mean([r.try_prediction_results["ptm"] for r in oligomers.values()])} '
         score_string += f'{np.mean([np.mean(r.try_prediction_results["predicted_aligned_error"]) for r in oligomers.values()])} '
 
+=======
+        for name, oligo in oligomers.items():
+
+            oligo_to_pdb_file(oligo, i, out_dir, out_basename, args)
+
+            # Optionally save the PAE matrix
+            if args.output_pae == True:
+                np.save(
+                    f"{out_dir}/{out_basename}_{oligo.name}_step_{i:05d}.npy",
+                    oligo.current_prediction_results[
+                        "predicted_aligned_error"
+                    ],
+                )
+    add_default_scores(score_container, i, accepted, T, oligomers)
+    write_to_score_file(
+        out_dir, out_basename, score_container, key_list=None, sep=" "
+    )
+>>>>>>> code written, no debugging yet
     rolling_window.append(current_loss)
 
 print("Done")

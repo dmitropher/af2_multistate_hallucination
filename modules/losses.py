@@ -1,8 +1,6 @@
 # losses module
 
 import numpy as np
-<<<<<<< HEAD
-<<<<<<< HEAD
 import sys; sys.path.append('/projects/ml/alphafold/alphafold_git/')
 from alphafold.common import protein
 # dssp loss imports
@@ -11,13 +9,8 @@ from Bio.PDB.DSSP import dssp_dict_from_pdb_file
 # to run tmalign
 import subprocess
 from scipy import linalg
-=======
-import sys
->>>>>>> first commit for factory and resources
-=======
 
-# import sys
->>>>>>> added dssp maybe
+
 
 from loss_factory import Loss, CombinedLoss, get_loss_creator
 from loss_functions import (
@@ -28,6 +21,7 @@ from loss_functions import (
     dssp_wrapper,
     calculate_dssp_fractions,
 )
+from scoring import scores_from_loss
 
 from file_io import dummy_pdbfile
 
@@ -35,23 +29,6 @@ from file_io import dummy_pdbfile
 # LOSS FACTORY FRAMEWORK
 ######################################################
 
-<<<<<<< HEAD
-def get_coord(atom_type, oligo_object):
-    '''
-    General function to get the coordinates of an atom type in a pdb. For geometric-based losses.
-    Returns an array [[chain, resid, x, y, z]]
-    '''
-    coordinates = []
-    pdb_lines = protein.to_pdb(oligo_object.try_unrelaxed_structure).split('\n')
-    for l in pdb_lines: # parse PDB lines and extract atom coordinates
-        if 'ATOM' in l and atom_type in l:
-            s = l.split()
-            if len(s[4]) > 1: # residue idx and chain id are no longer space-separated at high id values
-                coordinates.append([s[4][0], int(s[4][1:]), np.array(s[5:8], dtype=float)])
-            else:
-                coordinates.append([s[4], int(s[5]), np.array(s[6:9], dtype=float)])
-=======
->>>>>>> first commit for factory and resources
 
 def get_allowed_loss_names():
     """
@@ -469,7 +446,7 @@ def get_loss_dict():
 ############################
 
 
-def compute_loss(loss_names, oligo, args, loss_weights):
+def compute_loss(loss_names, oligo, args, loss_weights, score_container=None):
     """
     Compute the loss of a single oligomer.
     losses: list of list of losses and their associated arguments (if any).
@@ -484,8 +461,10 @@ def compute_loss(loss_names, oligo, args, loss_weights):
     for loss_idx, current_loss in enumerate(loss_names):
         loss_type, loss_params = current_loss
         args_dict["loss_params"] = loss_params
-        score = get_loss(loss_type, oligo_obj=oligo, **args_dict).score()
+        loss_obj = get_loss(loss_type, oligo_obj=oligo, **args_dict)
+        score = loss_obj.score()
 
+        #TODO: turn into loss object
         elif loss_type == 'aspect_ratio':
             # NOTE:
             # This loss adds a geometric term that forces an aspect ratio of 1 (spherical protomers) to prevent extended structures.
@@ -505,17 +484,14 @@ def compute_loss(loss_names, oligo, args, loss_weights):
             score = 1. - np.mean(aspect_ratios) # average aspect ratio across all protomers of an oligomer
 
         scores.append(score)
+        if score_container is not None:
+            score_container.add_scores(*scores_from_loss(loss_obj))
 
     # Normalize loss weights vector.
     loss_weights_normalized = np.array(loss_weights) / np.sum(loss_weights)
 
-<<<<<<< HEAD
     # Total loss for this oligomer is the sum of its weighted scores.
     final_score = np.sum(np.array(scores) * loss_weights_normalized)
-=======
-    # Total loss for this oligomer is the average of its weighted scores.
-    final_score = np.mean(np.array(scores) * loss_weights_normalized)
->>>>>>> first commit for factory and resources
 
     # The loss counts positively or negatively to the overall loss depending on whether this oligomer is positively or negatively designed.
     if oligo.positive_design == True:
