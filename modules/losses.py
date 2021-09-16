@@ -317,7 +317,7 @@ class fracDSSPLoss(Loss):
 
     def get_base_values(self):
         name_dict = {self.loss_name: self.value}
-        all_dict = {**self.delta_dssp, **name_dict}
+        all_dict = {**self._delta_dssp, **name_dict}
         return all_dict
 
 
