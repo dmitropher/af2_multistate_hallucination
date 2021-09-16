@@ -59,7 +59,9 @@ def get_coord(atom_type, oligo_object):
 def dssp_wrapper(pdbfile):
     """Compute DSSP string on structure."""
 
-    dssp_dict = dssp_dict_from_pdb_file(pdbfile, DSSP=default_dssp_dict())[0]
+    dssp_dict = dssp_dict_from_pdb_file(
+        pdbfile, DSSP=default_dssp_dict()
+    )  # [0]
 
     dssp_list = []
     for key in dssp_dict.keys():
