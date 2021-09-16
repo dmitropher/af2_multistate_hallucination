@@ -309,10 +309,11 @@ class fracDSSPLoss(Loss):
         actual = {"E": frac_beta, "H": frac_alpha, "O": frac_other}
         chosen_fracs = self.desired_dssp.keys()
         self._delta_dssp = {
-            key: (abs(actual[key] - self.desired_dssp[key]))
+            ("delta_" + key): (abs(actual[key] - self.desired_dssp[key]))
             for key in chosen_fracs
         }
-        self.value = 1 - max(self._delta_dssp.values())
+        n_keys = len(self.desired_dssp.keys())
+        self.value = 1 - sum(self._delta_dssp.values() / n_keys)
         return self.value
 
     def get_base_values(self):
