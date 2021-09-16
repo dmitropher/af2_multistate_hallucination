@@ -592,7 +592,15 @@ for i in range(1, args.steps):
                         "predicted_aligned_error"
                     ],
                 )
-    add_default_scores(score_container, i, accepted, T, oligomers)
+    add_default_scores(
+        score_container,
+        i,
+        accepted,
+        T,
+        oligomers,
+        oligo_weights_normalized,
+        args,
+    )
     write_to_score_file(
         out_dir, out_basename, score_container, key_list=None, sep=" "
     )
