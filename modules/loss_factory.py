@@ -27,6 +27,14 @@ def get_loss_creator(**losses_dict):
     return factory
 
 
+def get_creator_from_dicts(*dicts):
+
+    registered_losses_dict = dicts[0]
+    for d in dicts[1:]:
+        registered_losses_dict = {**registered_losses_dict, **d}
+    return get_loss_creator(registered_losses_dict)
+
+
 class Loss(object):
     """
     Generic Loss object, not intended to be used except as abstract parent

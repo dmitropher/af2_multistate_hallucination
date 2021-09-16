@@ -1,25 +1,5 @@
-# losses module
-
 import numpy as np
-<<<<<<< HEAD
-<<<<<<< HEAD
-import sys; sys.path.append('/projects/ml/alphafold/alphafold_git/')
-from alphafold.common import protein
-# dssp loss imports
-from Bio.PDB.DSSP import DSSP
-from Bio.PDB.DSSP import dssp_dict_from_pdb_file
-# to run tmalign
-import subprocess
-from scipy import linalg
-=======
-import sys
->>>>>>> first commit for factory and resources
-=======
 
-# import sys
->>>>>>> added dssp maybe
-
-<<<<<<< HEAD
 from loss_factory import Loss, CombinedLoss, get_loss_creator
 from loss_functions import (
     pae_sub_mat,
@@ -29,39 +9,7 @@ from loss_functions import (
     dssp_wrapper,
     calculate_dssp_fractions,
 )
-from scoring import scores_from_loss
-
 from file_io import dummy_pdbfile
-
-######################################################
-# LOSS FACTORY FRAMEWORK
-######################################################
-
-<<<<<<< HEAD
-def get_coord(atom_type, oligo_object):
-    '''
-    General function to get the coordinates of an atom type in a pdb. For geometric-based losses.
-    Returns an array [[chain, resid, x, y, z]]
-    '''
-    coordinates = []
-    pdb_lines = protein.to_pdb(oligo_object.try_unrelaxed_structure).split('\n')
-    for l in pdb_lines: # parse PDB lines and extract atom coordinates
-        if 'ATOM' in l and atom_type in l:
-            s = l.split()
-            if len(s[4]) > 1: # residue idx and chain id are no longer space-separated at high id values
-                coordinates.append([s[4][0], int(s[4][1:]), np.array(s[5:8], dtype=float)])
-            else:
-                coordinates.append([s[4], int(s[5]), np.array(s[6:9], dtype=float)])
-=======
->>>>>>> first commit for factory and resources
-
-def get_allowed_loss_names():
-    """
-    Returns the DSSP string values registered with the current creator
-    """
-    from copy import deepcopy
-
-    return deepcopy(get_loss_creator()._creators)
 
 
 class oligoLoss(Loss):
@@ -474,88 +422,23 @@ global_losses_dict = {
 }
 
 
-global_creator = get_loss_creator(**global_losses_dict)
+def get_loss_dict():
+    return global_losses_dict
+
+
+def get_global_creator():
+    global_creator = get_loss_creator(**get_loss_dict())
+    return global_creator
 
 
 def get_loss(loss_name, **loss_params):
-    return global_creator.get_loss(loss_name, **loss_params)
-=======
->>>>>>> basic sap loss, no tests, refactoring
-
-from scoring import scores_from_loss
-
-from loss_factory import get_creator_from_dicts
-
-from simple_losses import get_loss_dict as get_simple_loss_dict
-from rosetta_losses import get_loss_dict as get_rosetta_loss_dict
-
-############################
-# LOSS COMPUTATION
-############################
+    return get_global_creator().get_loss(loss_name, **loss_params)
 
 
-def compute_loss(loss_names, oligo, args, loss_weights, score_container=None):
+def get_allowed_simple_loss_names():
     """
-    Compute the loss of a single oligomer.
-    losses: list of list of losses and their associated arguments (if any).
-    oligo: an Oligomer object.
-    args: the whole argument namespace (some specific arguments are required for some specific losses).
-    loss_weights: list of weights associated with each loss.
+    Returns the DSSP string values registered with the current creator
     """
-    # intialize scores
-    scores = []
-    # iterate over all losses
-    args_dict = vars(args)
+    from copy import deepcopy
 
-    main_creator = get_creator_from_dicts(
-        get_simple_loss_dict(), get_rosetta_loss_dict()
-    )
-
-    for loss_idx, current_loss in enumerate(loss_names):
-        loss_type, loss_params = current_loss
-        args_dict["loss_params"] = loss_params
-        loss_obj = main_creator.get_loss(
-            loss_type, oligo_obj=oligo, **args_dict
-        )
-        score = loss_obj.score()
-
-        elif loss_type == 'aspect_ratio':
-            # NOTE:
-            # This loss adds a geometric term that forces an aspect ratio of 1 (spherical protomers) to prevent extended structures.
-            # At each step, the PDB is generated, and a singular value decomposition is performed on the coordinates of the CA atoms.
-            # The ratio of the two largest values is taken as the aspect ratio of the protomer.
-            # For oligomers, the aspect ratio is calculated for each protomer independently, and the average returned.
-
-            c = get_coord('CA', oligo) # get CA atoms, returns array [[chain, resid, x, y, z]]
-            aspect_ratios = []
-            chains = set(c[:,0])
-            for ch in chains:
-                coords = np.array([a[2:][0] for a in c[c[:,0]==ch]])
-                coords -= coords.mean(axis=0) # mean-center the protomer coordinates
-                s = linalg.svdvals(coords) # singular values of the coordinates
-                aspect_ratios.append(s[1] / s[0])
-
-            score = 1. - np.mean(aspect_ratios) # average aspect ratio across all protomers of an oligomer
-
-        scores.append(score)
-        if score_container is not None:
-            score_container.add_scores(*scores_from_loss(loss_obj))
-
-    # Normalize loss weights vector.
-    loss_weights_normalized = np.array(loss_weights) / np.sum(loss_weights)
-
-<<<<<<< HEAD
-    # Total loss for this oligomer is the sum of its weighted scores.
-    final_score = np.sum(np.array(scores) * loss_weights_normalized)
-=======
-    # Total loss for this oligomer is the average of its weighted scores.
-    final_score = np.mean(np.array(scores) * loss_weights_normalized)
->>>>>>> first commit for factory and resources
-
-    # The loss counts positively or negatively to the overall loss depending on whether this oligomer is positively or negatively designed.
-    if oligo.positive_design == True:
-        loss = float(final_score)
-    else:
-        loss = float(final_score) + 1
-
-    return loss
+    return deepcopy(get_global_creator()._creators)
