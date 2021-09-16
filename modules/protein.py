@@ -138,7 +138,7 @@ class Oligomer:
             self.init_unrelaxed_structure
         )
         self.try_prediction_results = deepcopy(self.init_prediction_results)
-        self.laxed_structure = deepcopy(self.init_unrelaxed_structure)
+        self.unrelaxed_structure = deepcopy(self.init_unrelaxed_structure)
 
     def init_loss(self, loss):
         """Initalise loss"""
