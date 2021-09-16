@@ -194,7 +194,7 @@ for name, oligo in oligomers.items():
     # Assign the init prediction as the current prediction
 
     oligo.assign_prediction(
-        (oligo.init_prediction, oligo.init_unrelaxed_structure)
+        oligo.init_prediction_results, oligo.init_unrelaxed_structure
     )  # run AlphaFold2 prediction
     # this func implicitely edits the score container, adding arbitrary scores based on losses used
     loss = compute_loss(
