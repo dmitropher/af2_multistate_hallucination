@@ -321,7 +321,17 @@ class fracDSSPLoss(Loss):
             for key in chosen_fracs
         }
         n_keys = len(self.desired_dssp.keys())
-        self.value = 1 - sum(self._delta_dssp.values()) / n_keys
+        mid = 0.3
+        max_val = 1
+        steep = 10
+        self.value = (
+            1
+            - sum(
+                max_val / (1 + np.exp(-1 * steep * (val - mid)))
+                for val in self._delta_dssp.values()
+            )
+            / n_keys
+        )
         return self.value
 
     def get_base_values(self):
