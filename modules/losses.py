@@ -28,6 +28,7 @@ from loss_functions import (
     dssp_wrapper,
     calculate_dssp_fractions,
 )
+from scoring import scores_from_loss
 
 from file_io import dummy_pdbfile
 
@@ -469,7 +470,7 @@ def get_loss_dict():
 ############################
 
 
-def compute_loss(loss_names, oligo, args, loss_weights):
+def compute_loss(loss_names, oligo, args, loss_weights, score_container=None):
     """
     Compute the loss of a single oligomer.
     losses: list of list of losses and their associated arguments (if any).
@@ -484,7 +485,8 @@ def compute_loss(loss_names, oligo, args, loss_weights):
     for loss_idx, current_loss in enumerate(loss_names):
         loss_type, loss_params = current_loss
         args_dict["loss_params"] = loss_params
-        score = get_loss(loss_type, oligo_obj=oligo, **args_dict).score()
+        loss_obj = get_loss(loss_type, oligo_obj=oligo, **args_dict)
+        score = loss_obj.score()
 
         elif loss_type == 'aspect_ratio':
             # NOTE:
@@ -505,6 +507,8 @@ def compute_loss(loss_names, oligo, args, loss_weights):
             score = 1. - np.mean(aspect_ratios) # average aspect ratio across all protomers of an oligomer
 
         scores.append(score)
+        if score_container is not None:
+            score_container.add_scores(*scores_from_loss(loss_obj))
 
     # Normalize loss weights vector.
     loss_weights_normalized = np.array(loss_weights) / np.sum(loss_weights)
