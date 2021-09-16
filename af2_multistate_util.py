@@ -49,6 +49,7 @@ def add_default_scores(
     step,
     accepted,
     T,
+    mutations,
     oligomers,
     oligo_weights_normalized,
     user_args,
@@ -59,6 +60,7 @@ def add_default_scores(
     score_container.add_score(Score(name=f"step", value=f"{step:05d}"))
     score_container.add_score(Score(name=f"accepted", value=f"{accepted}"))
     score_container.add_score(Score(name=f"temperature", value=f"{T}"))
+    score_container.add_score(Score(name=f"mutations", value=f"{mutations}"))
     score_container.add_score(
         Score(
             name=f"loss",
@@ -71,7 +73,7 @@ def add_default_scores(
             name=f"plddt",
             value=np.mean(
                 [
-                    oligo.try_prediction_results["plddt"]
+                    np.mean(oligo.try_prediction_results["plddt"])
                     for oligo in oligomers.values()
                 ]
             ),
@@ -93,7 +95,9 @@ def add_default_scores(
             name=f"pae",
             value=np.mean(
                 [
-                    oligo.try_prediction_results["predicted_aligned_error"]
+                    np.mean(
+                        oligo.try_prediction_results["predicted_aligned_error"]
+                    )
                     for oligo in oligomers.values()
                 ]
             ),
