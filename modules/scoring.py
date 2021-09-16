@@ -18,6 +18,17 @@ class ScoreContainer(object):
             for score in scores:
                 if not (score.name in self._scores_dict.keys()):
                     self._scores_dict[score.name] = score.value
+
+    def add_score(self,score,overwrite=True):
+        """
+        add single score: overwrites score with same name by default
+        """
+        if overwrite:
+            self._scores_dict[score.name] = score.value
+        else:
+            if not (score.name in self._scores_dict.keys()):
+                self._scores_dict[score.name] = score.value
+
     def get_score(self,name):
         return self._scores_dict[name]
 
