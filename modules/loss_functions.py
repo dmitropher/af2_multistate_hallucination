@@ -64,7 +64,6 @@ def dssp_wrapper(pdbfile):
     dssp_list = []
     for key in dssp_dict.keys():
         dssp_list.append(dssp_dict[key][1])
-    raise AssertionError(f"{dssp_list}")
     return dssp_list
 
 
