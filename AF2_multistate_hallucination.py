@@ -220,7 +220,19 @@ add_default_scores(
     oligo_weights_normalized,
     args,
 )
-key_list = list(initial_score_container.get_keys())
+key_list_default = list(initial_score_container.get_keys())
+key_list_preferred = [
+    "step",
+    "accepted",
+    "temperature",
+    "mutations",
+    "loss",
+    "plddt",
+    "ptm",
+]
+keys_other = [key for key in key_list_default if key not in key_list_preferred]
+all_score_keys = key_list_preferred
+all_score_keys.extend(keys_other)
 
 # header_string = ""
 # for key in key_list:
@@ -233,7 +245,11 @@ key_list = list(initial_score_container.get_keys())
 # ) as f:
 #     f.write(header_string)
 write_to_score_file(
-    out_dir, out_basename, initial_score_container, key_list=None, sep=" "
+    out_dir,
+    out_basename,
+    initial_score_container,
+    key_list=all_score_keys,
+    sep=" ",
 )
 
 for i in range(1, args.steps):
@@ -534,7 +550,11 @@ for i in range(1, args.steps):
         args,
     )
     write_to_score_file(
-        out_dir, out_basename, score_container, key_list=None, sep=" "
+        out_dir,
+        out_basename,
+        score_container,
+        key_list=all_score_keys,
+        sep=" ",
     )
     rolling_window.append(current_loss)
 
