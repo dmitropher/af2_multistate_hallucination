@@ -32,7 +32,9 @@ def dummy_pdbfile(oligo):
     returns a StringIO (in lieu of a file) from an "oligo"
     """
     temp = tempfile.NamedTemporaryFile(mode="w+")
-    temp.write(protein.to_pdb(oligo.try_unrelaxed_structure))
+    pdb_string = protein.to_pdb(oligo.try_unrelaxed_structure)
+    temp.write(pdb_string)
+    raise AssertionError(f"{pdb_string}")
     temp.flush()
     temp.seek(0)
     return temp
