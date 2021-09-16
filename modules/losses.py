@@ -293,6 +293,7 @@ class fracDSSPLoss(Loss):
                 "Fractions dssp desired can not sum to greater than 1"
             )
         self.oligo = oligo_obj
+        self._delta_dssp = {}
         self.value = self.compute()
         self._information_string = f"""This loss object for: {self.loss_name}.
         This loss computes the deviation from the desired fraction dssp
@@ -307,10 +308,17 @@ class fracDSSPLoss(Loss):
         dummy.close()
         actual = {"E": frac_beta, "H": frac_alpha, "O": frac_other}
         chosen_fracs = self.desired_dssp.keys()
-        self.value = 1 - max(
-            (abs(actual[key] - self.desired_dssp[key])) for key in chosen_fracs
-        )
+        self._delta_dssp = {
+            key: (abs(actual[key] - self.desired_dssp[key]))
+            for key in chosen_fracs
+        }
+        self.value = 1 - max(self._delta_dssp.values())
         return self.value
+
+    def get_base_values(self):
+        name_dict = {self.loss_name: self.value}
+        all_dict = {**self.delta_dssp, **name_dict}
+        return all_dict
 
 
 class tmAlignLoss(Loss):
