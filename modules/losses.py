@@ -315,7 +315,6 @@ class fracDSSPLoss(Loss):
         )
         dummy.close()
         actual = {"E": frac_beta, "H": frac_alpha, "O": frac_other}
-        print(actual)
         chosen_fracs = self.desired_dssp.keys()
         self._delta_dssp = {
             key: (abs(actual[key] - self.desired_dssp[key]))
