@@ -34,7 +34,7 @@ def dummy_pdbfile(oligo):
     temp = tempfile.NamedTemporaryFile(mode="w+")
     pdb_string = protein.to_pdb(oligo.try_unrelaxed_structure)
     temp.write(pdb_string)
-    raise AssertionError(f"{pdb_string}")
     temp.flush()
     temp.seek(0)
+    raise AssertionError(f"{temp.read()}")
     return temp
