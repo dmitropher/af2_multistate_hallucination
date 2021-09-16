@@ -189,10 +189,11 @@ def write_to_score_file(
                 for key in score_container.get_keys():
                     f.write(f"{key}{sep}")
             f.write("\n")
-    with open(score_path, "w") as f:
+    with open(score_path, "a") as f:
         if key_list:
             for key in key_list:
                 f.write(f"{score_container.get_score(key)}{sep}")
         else:
             for key in score_container.get_keys():
                 f.write(f"{score_container.get_score(key)}{sep}")
+        f.write("\n")
