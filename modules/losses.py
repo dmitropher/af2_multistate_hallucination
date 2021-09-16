@@ -313,7 +313,7 @@ class fracDSSPLoss(Loss):
             for key in chosen_fracs
         }
         n_keys = len(self.desired_dssp.keys())
-        mid = 0.3
+        mid = 0.25
         max_val = 1
         steep = 10
         self.value = (
