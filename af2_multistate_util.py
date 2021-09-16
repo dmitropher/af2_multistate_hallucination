@@ -69,8 +69,8 @@ def add_default_scores(
             name=f"loss",
             value=np.mean(
                 np.array([oligo.try_loss for oligo in oligomers.values()])
-            )
-            * oligo_weights_normalized,
+                * oligo_weights_normalized
+            ),
         )
     )
     score_container.add_score(

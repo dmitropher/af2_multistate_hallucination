@@ -211,7 +211,7 @@ class weightedLoss(CombinedLoss):
         return self.value
 
     def score(self):
-        return 1 - self.value if self.invert else self.value
+        return (1 - self.value) if self.invert else self.value
 
 
 class maxLoss(CombinedLoss):
@@ -237,7 +237,7 @@ class maxLoss(CombinedLoss):
         return self.value
 
     def score(self):
-        return 1 - self.value if self.invert else self.value
+        return (1 - self.value) if self.invert else self.value
 
 
 class minLoss(CombinedLoss):
@@ -263,7 +263,7 @@ class minLoss(CombinedLoss):
         return self.value
 
     def score(self):
-        return 1 - self.value if self.invert else self.value
+        return (1 - self.value) if self.invert else self.value
 
 
 class separationLoss(Loss):
