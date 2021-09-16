@@ -36,5 +36,5 @@ def dummy_pdbfile(oligo):
     temp.write(pdb_string)
     temp.flush()
     temp.seek(0)
-    raise AssertionError(f"{temp.read()}")
+    raise AssertionError(f"{open(temp.name).read()}")
     return temp
