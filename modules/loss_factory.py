@@ -77,7 +77,7 @@ class Loss(object):
         return self._information_string
 
     def get_base_values(self):
-        return {}
+        return {self.name: self.value}
 
 
 class CombinedLoss(Loss):
@@ -105,10 +105,7 @@ class CombinedLoss(Loss):
         """
         all_vals = {}
         for loss in self.losses:
-            try:
-                vals_dict = loss.get_base_values()
-                for k, v in vals_dict.items():
-                    all_vals[k] = v
-            except AttributeError:
-                all_vals[loss.loss_name] = loss.value
+            vals_dict = loss.get_base_values()
+            for k, v in vals_dict.items():
+                all_vals[k] = v
         return all_vals
