@@ -96,7 +96,11 @@ class MaxSAPDual(maxLoss):
         SAP is weighted according to the SAPLoss object config. The SAPLoss component inherits kwargs from this at time of writing"""
 
 
-global_losses_dict = {"sap_loss": SAPLoss, "sap_plddt_ptm_equal": SAPPlusDual}
+global_losses_dict = {
+    "sap_loss": SAPLoss,
+    "sap_plddt_ptm_equal": SAPPlusDual,
+    "sap_plddt_ptm_max": MaxSAPDual,
+}
 
 
 def get_loss_dict():
