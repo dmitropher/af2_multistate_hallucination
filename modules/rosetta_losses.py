@@ -60,7 +60,9 @@ class SAPLoss(Loss):
 
 
 class SAPPlusDual(weightedLoss):
-    def __init__(self, oligo_obj=None, **user_kwargs):
+    def __init__(
+        self, loss_name="sap_plddt_ptm_equal", oligo_obj=None, **user_kwargs
+    ):
         """
         init for this combined loss
 
@@ -81,7 +83,9 @@ class SAPPlusDual(weightedLoss):
 
 
 class MaxSAPDual(maxLoss):
-    def __init__(self, oligo_obj=None, **user_kwargs):
+    def __init__(
+        self, loss_name="sap_plddt_ptm_max", oligo_obj=None, **user_kwargs
+    ):
         """
         init for this combined loss
 
