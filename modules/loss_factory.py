@@ -77,7 +77,10 @@ class Loss(object):
         """
         Returns self.value
 
-        Remember to overwrite this when your value is not a loss
+        Meant to rescale the object's "value", to a score from 0 to 1, lower is better
+        This is for loss summation/reporting purposes.
+        he "value" attribute is meant to report the actual computed value.
+        "score()" returns a rescaled value from 0 to 1 to be used as a loss
         """
         return self.value
 
