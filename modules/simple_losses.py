@@ -150,9 +150,9 @@ class paeAsymLoss(oligoLoss):
 
 class weightedLoss(CombinedLoss):
     """
-    A combined loss which weights the input values (evenly by default)
+    A combined loss which weights the input scores (evenly by default)
 
-    inverts the sum by default ( score = 1 - sum(weighted_losses))
+    Does not invert the sum by default, but can: ( score = 1 - sum(weighted_losses))
     """
 
     def __init__(
@@ -179,7 +179,7 @@ class weightedLoss(CombinedLoss):
 
     def compute(self):
         self.value = sum(
-            loss.value * self.weights[loss.loss_name] for loss in self.losses
+            loss.score() * self.weights[loss.loss_name] for loss in self.losses
         )
         return self.value
 
@@ -200,13 +200,13 @@ class maxLoss(CombinedLoss):
 
         self.value = self.compute()
         self._information_string = f"""This loss object only keeps the biggest loss.
-        Can be used with the invert option to output 1-max(*losses) (default is invert).
+        Can be used with the invert option to output 1-max(*losses) (default is not invert).
         included losses:
         {self.get_base_values().keys()}
         returns the biggest of the input losses"""
 
     def compute(self):
-        self.value = max(loss.value for loss in self.losses)
+        self.value = max(loss.score() for loss in self.losses)
         return self.value
 
     def score(self):
@@ -226,13 +226,13 @@ class minLoss(CombinedLoss):
 
         self.value = self.compute()
         self._information_string = f"""This loss object only keeps the biggest loss.
-        Can be used with the invert option to output 1-min(*losses) (default is invert!).
+        Can be used with the invert option to output 1-min(*losses) (default is not invert!).
         included losses:
         {self.get_base_values().keys()}
         returns the smallest of the input losses"""
 
     def compute(self):
-        self.value = min(loss.value for loss in self.losses)
+        self.value = min(loss.score() for loss in self.losses)
         return self.value
 
     def score(self):
@@ -260,7 +260,7 @@ class separationLoss(Loss):
 
 class fracDSSPLoss(Loss):
     """
-    Loss based on separation of units in the oligo (standard deviation)
+    Loss based on mean deviation from user specified fraction dssp
     """
 
     def __init__(self, oligo_obj=None, **user_kwargs):
@@ -278,7 +278,9 @@ class fracDSSPLoss(Loss):
         self.value = self.compute()
         self._information_string = f"""This loss object for: {self.loss_name}.
         This loss computes the deviation from the desired fraction dssp
-        ranges 0-1 higher is better, near 0 is very very bad"""
+        Value is the mean deviation from desired fraction dssp.
+        get_base_values is overwridden to provide raw dssp deviation for each type
+        Score is a logistically reweighted value from 0-1, lower is better"""
 
     def compute(self):
         dummy = dummy_pdbfile(self.oligo)
@@ -293,26 +295,27 @@ class fracDSSPLoss(Loss):
             ("delta_" + key): (abs(actual[key] - self.desired_dssp[key]))
             for key in chosen_fracs
         }
-        n_keys = len(self.desired_dssp.keys())
+        self.value = np.mean(self._delta_dssp.values())
+        return self.value
+
+    def logistic_rescale(self,):
         mid = 0.25
         max_val = 1
         steep = 10
-        self.value = (
-            1
-            - sum(
-                max_val / (1 + np.exp(-1 * steep * (val - mid)))
-                for val in self._delta_dssp.values()
-            )
-            / n_keys
-        )
-        return self.value
+        return max_val / (1 + np.exp(-1 * steep * (self.value - mid)))
 
     def get_base_values(self):
         name_dict = {self.loss_name: self.value}
         all_dict = {**self._delta_dssp, **name_dict}
         return all_dict
 
+    # TODO: allow logistical parameters to be rescaled from user_args
+    def score(self):
+        return self.logistic_rescale(self.value)
 
+
+# TODO change this to a logisically mapped rescale, with some TMAlign midpoint around 2 or something
+# (rmsd greater than 2 is worse than linearly bad),less than 2 is better than linearly bad
 class tmAlignLoss(Loss):
     """
     Loss based on separation of units in the oligo (standard deviation)
@@ -350,7 +353,7 @@ class dualLoss(weightedLoss):
             pLDDTLoss(oligo_obj=oligo_obj, loss_name="plddt"),
             ptmLoss(oligo_obj=oligo_obj, loss_name="ptm"),
             even=True,
-            invert=True,
+            invert=False,
             **user_kwargs,
         )
         self._information_string = f"""This loss jointly optimises ptm and plddt (equal weights).
@@ -369,8 +372,8 @@ class dualCyclicLoss(weightedLoss):
             ptmLoss(oligo_obj=oligo_obj, loss_name="ptm"),
             separationLoss(oligo_obj=oligo_obj, loss_name="separation"),
             even=False,
-            invert=True,
-            weights={"plddt": 2.0, "ptm": 2.0, "separation": -1.0},
+            invert=False,
+            weights={"plddt": 2.0, "ptm": 2.0, "separation": 1.0},
             **user_kwargs,
         )
         self._information_string = f"""This loss jointly optimises ptm and plddt (equal weights).
@@ -387,14 +390,14 @@ class dualTMAlignLoss(weightedLoss):
                 oligo_obj=oligo_obj, loss_name="tmAlign", **user_kwargs
             ),
             even=True,
-            invert=True,
+            invert=False,
             **user_kwargs,
         )
         self._information_string = f"""This loss jointly optimises tmalign to template,ptm and plddt (equal weights).
         It attemps to combine the best of both worlds -- getting folded structures that are in contact which match the original model"""
 
 
-class minDSSPptmlDDT(minLoss):
+class maxDSSPptmlDDT(maxLoss):
     def __init__(self, oligo_obj=None, **user_kwargs):
         super().__init__(
             pLDDTLoss(oligo_obj=oligo_obj, loss_name="plddt"),
@@ -418,7 +421,7 @@ global_losses_dict = {
     "pae_asym": paeAsymLoss,
     "dual": dualLoss,
     "separation": separationLoss,
-    "min_dssp_ptm_lddt": minDSSPptmlDDT,
+    "max_dssp_ptm_lddt": maxDSSPptmlDDT,
 }
 
 
