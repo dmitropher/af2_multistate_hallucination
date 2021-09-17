@@ -1,5 +1,10 @@
+import sys
+
 import numpy as np
 
+sys.path.append(
+    "/software/conda/envs/pyrosetta/lib/python3.7/site-packages/pyrosetta/"
+)
 import pyrosetta
 
 from file_io import dummy_pdbfile
