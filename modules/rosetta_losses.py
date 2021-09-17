@@ -16,16 +16,16 @@ class SAPLoss(Loss):
     """
 
     def __init__(self, oligo=None, **params):
-        self._rosetta_flags_string = (
-            params["rosetta_flags_string"]
-            if "rosetta_flags_string" in params.keys()
-            else None
-        )
-        pyrosetta.distributed.maybe_init(
-            ""
-            if self._rosetta_flags_string is None
-            else self._rosetta_flags_string
-        )
+        # self._rosetta_flags_string = (
+        #     params["rosetta_flags_string"]
+        #     if "rosetta_flags_string" in params.keys()
+        #     else None
+        # )
+        pyrosetta.distributed.maybe_init()
+        #     ""
+        #     if self._rosetta_flags_string is None
+        #     else self._rosetta_flags_string
+        # )
         self.value = self.compute()
         self._information_string(
             f"""This loss computes total sap for the molecule.
