@@ -41,7 +41,7 @@ class SAPLoss(Loss):
         pose = pyrosetta.pose_from_file(dummy_path)
 
         true_selector = (
-            pyrosetta.rosetta.core.select.residue_selector.TrueSelector()
+            pyrosetta.rosetta.core.select.residue_selector.TrueResidueSelector()
         )
 
         self.value = pyrosetta.rosetta.core.pack.guidance_scoreterms.sap.calculate_sap(
