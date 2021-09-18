@@ -29,10 +29,8 @@ class SAPLoss(Loss):
         #     else self._rosetta_flags_string
         # )
         self.value = self.compute()
-        self._information_string(
-            f"""This loss computes total sap for the molecule.
+        self._information_string = f"""This loss computes total sap for the molecule.
         Score rescales it between 0-1, higher is better (less sap)"""
-        )
 
     def compute(self):
 
