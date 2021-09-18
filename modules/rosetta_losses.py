@@ -16,6 +16,8 @@ class SAPLoss(Loss):
     """
 
     def __init__(self, oligo_obj=None, **params):
+        super().__init__(oligo_obj=None, **params)
+        self.oligo = oligo_obj
         # self._rosetta_flags_string = (
         #     params["rosetta_flags_string"]
         #     if "rosetta_flags_string" in params.keys()
@@ -27,7 +29,6 @@ class SAPLoss(Loss):
         #     else self._rosetta_flags_string
         # )
         self.value = self.compute()
-        self.oligo = oligo_obj
         self._information_string(
             f"""This loss computes total sap for the molecule.
         Score rescales it between 0-1, higher is better (less sap)"""
