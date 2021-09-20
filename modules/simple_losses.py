@@ -311,7 +311,7 @@ class fracDSSPLoss(Loss):
 
     # TODO: allow logistical parameters to be rescaled from user_args
     def score(self):
-        return 1 - self.logistic_rescale()
+        return self.logistic_rescale()
 
 
 # TODO change this to a logisically mapped rescale, with some TMAlign midpoint around 2 or something
