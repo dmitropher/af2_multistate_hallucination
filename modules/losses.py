@@ -517,6 +517,7 @@ def compute_loss(loss_names, oligo, args, loss_weights, score_container=None):
         loss_obj = main_creator.get_loss(
             loss_type, oligo_obj=oligo, **args_dict
         )
+        print(f"{loss_obj}")
         score = loss_obj.score()
 
         elif loss_type == 'aspect_ratio':
