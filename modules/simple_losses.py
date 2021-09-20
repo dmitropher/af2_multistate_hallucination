@@ -295,7 +295,7 @@ class fracDSSPLoss(Loss):
             ("delta_" + key): (abs(actual[key] - self.desired_dssp[key]))
             for key in chosen_fracs
         }
-        self.value = np.mean(self._delta_dssp.values())
+        self.value = np.mean(np.array(self._delta_dssp.values()))
         return self.value
 
     def logistic_rescale(self,):
@@ -422,7 +422,6 @@ global_losses_dict = {
     "dual": dualLoss,
     "separation": separationLoss,
     "max_dssp_ptm_lddt": maxDSSPptmlDDT,
-    "min_dssp_ptm_lddt": minDSSPptmlDDT,
 }
 
 
