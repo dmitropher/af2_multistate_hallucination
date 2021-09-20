@@ -422,6 +422,7 @@ global_losses_dict = {
     "dual": dualLoss,
     "separation": separationLoss,
     "max_dssp_ptm_lddt": maxDSSPptmlDDT,
+    "min_dssp_ptm_lddt": minDSSPptmlDDT,
 }
 
 
