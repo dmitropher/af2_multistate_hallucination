@@ -407,7 +407,7 @@ class maxDSSPptmlDDT(maxLoss):
                 loss_name="dssp",
                 loss_params=user_kwargs["loss_params"],
             ),
-            invert=True,
+            invert=False,
             **user_kwargs,
         )
         self._information_string = f"""this loss takes the worst loss of the three: ptm, plddt, frac dssp, ensuring the trajectory only walks on all "ok" paths """
