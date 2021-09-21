@@ -56,7 +56,7 @@ class SAPLoss(Loss):
         max_val = 1
         steep = 0.15
         rescaled = max_val / (1 + np.exp(-1 * steep * (self.value - mid)))
-        return 1 - rescaled
+        return rescaled
 
 
 class SAPPlusDual(weightedLoss):
