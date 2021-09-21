@@ -52,9 +52,9 @@ class SAPLoss(Loss):
         return self.value
 
     def score(self):
-        mid = 30
+        mid = 75
         max_val = 1
-        steep = 0.15
+        steep = 0.08
         rescaled = max_val / (1 + np.exp(-1 * steep * (self.value - mid)))
         return rescaled
 
