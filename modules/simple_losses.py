@@ -420,6 +420,7 @@ global_losses_dict = {
     "pae_sub_mat": paeSubMatLoss,
     "pae_asym": paeAsymLoss,
     "dual": dualLoss,
+    "dual_cyclic": dualCyclicLoss,
     "separation": separationLoss,
     "max_dssp_ptm_lddt": maxDSSPptmlDDT,
 }
