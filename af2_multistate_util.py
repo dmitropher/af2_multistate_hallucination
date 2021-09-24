@@ -281,8 +281,8 @@ def write_to_score_file(
     with open(score_path, "a") as f:
         if key_list:
             for key in key_list:
-                f.write(f"{score_container.get_score(key)}{sep}")
+                f.write(f"{score_container.get_score(key):7.3f}{sep}")
         else:
             for key in score_container.get_keys():
-                f.write(f"{score_container.get_score(key)}{sep}")
+                f.write(f"{score_container.get_score(key):7.3f}{sep}")
         f.write("\n")
