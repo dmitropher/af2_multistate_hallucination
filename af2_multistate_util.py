@@ -260,12 +260,23 @@ def oligo_to_pdb_file(
         f.write(f"# {str(user_args)}\n")
 
 
-def is_float(s):
+def can_be_float(s):
     """
     Hehe
     """
     try:
         float(s)
+        int(s)
+        return True
+    except ValueError:
+        return False
+
+
+def can_be_int(s):
+    """
+    Hehe
+    """
+    try:
         int(s)
         return True
     except ValueError:
@@ -295,7 +306,7 @@ def write_to_score_file(
             key_list = score_container.get_keys()
         for key in key_list:
             score = score_container.get_score(key)
-            if is_float(score):
+            if can_be_float(score) and not can_be_int(score):
                 float_score = float(score)
                 f.write(f"{float_score:7.3f}{sep}")
             else:
