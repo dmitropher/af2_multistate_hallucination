@@ -215,7 +215,8 @@ def write_to_score_file(
         for key in key_list:
             score = score_container.get_score(key)
             if is_number(score):
-                f.write(f"{score:7.3f}{sep}")
+                float_score = float(score)
+                f.write(f"{float_score:7.3f}{sep}")
             else:
                 f.write(f"{score}{sep}")
         f.write("\n")
