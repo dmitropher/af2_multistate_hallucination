@@ -271,13 +271,12 @@ def can_be_float(s):
         return False
 
 
-def can_be_int(s):
+def is_int(s):
     """
     Hehe
     """
     try:
-        int(s)
-        return True
+        return int(s) == float(s)
     except ValueError:
         return False
 
@@ -305,11 +304,8 @@ def write_to_score_file(
             key_list = score_container.get_keys()
         for key in key_list:
             score = score_container.get_score(key)
-            print(score)
-            if can_be_float(score) and not can_be_int(score):
+            if can_be_float(score) and not (is_int(score)):
                 float_score = float(score)
-                print(float_score)
-                raise
                 f.write(f"{float_score:7.3f}{sep}")
             else:
                 f.write(f"{score}{sep}")
