@@ -180,6 +180,17 @@ def oligo_to_pdb_file(
         f.write(f"# {str(user_args)}\n")
 
 
+def is_number(s):
+    """
+    Hehe
+    """
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
 def write_to_score_file(
     out_dir, out_basename, score_container, key_list=None, sep=" "
 ):
@@ -199,10 +210,12 @@ def write_to_score_file(
                     f.write(f"{key}{sep}")
             f.write("\n")
     with open(score_path, "a") as f:
-        if key_list:
-            for key in key_list:
-                f.write(f"{score_container.get_score(key):7.3f}{sep}")
-        else:
-            for key in score_container.get_keys():
-                f.write(f"{score_container.get_score(key):7.3f}{sep}")
+        if key_list is None:
+            key_list = score_container.get_keys()
+        for key in key_list:
+            score = score_container.get_score(key)
+            if is_number(score):
+                f.write(f"{score:7.3f}{sep}")
+            else:
+                f.write(f"{score}{sep}")
         f.write("\n")
