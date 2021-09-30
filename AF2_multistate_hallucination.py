@@ -210,6 +210,7 @@ for name, oligo in oligomers.items():
     # Pull default scores for this oligo name
     add_default_oligo_scores(initial_score_container, name, oligo)
     oligo_to_pdb_file(oligo, 0, out_dir, out_basename, args)
+    current_loss = loss if loss < current_loss else current_loss
 add_default_scores(
     initial_score_container,
     0,
