@@ -8,6 +8,81 @@ import pyrosetta
 from file_io import dummy_pdbfile
 from loss_factory import Loss, get_loss_creator
 from simple_losses import weightedLoss, dualLoss, maxLoss
+from transform_decomposition import helical_axis_data
+
+
+class CyclicSymmLoss(Loss):
+    """
+    Value is the SAP score of the protein oligo when loaded
+    """
+
+    def __init__(self, oligo_obj=None, **params):
+        super().__init__(oligo_obj=None, **params)
+        self.oligo = oligo_obj
+        pyrosetta.distributed.maybe_init()
+        self.value = self.compute()
+        self._n_repeats = len(self.oligo.subunits)
+        self._information_string = f"""This loss computes deviation from ideal cyclic.
+        Score rescales it between 0-1, lower is better"""
+
+    def compute(self):
+
+        dummy = dummy_pdbfile(self.oligo)
+        dummy_path = dummy.name
+        pose = pyrosetta.pose_from_file(dummy_path)
+
+        s, C, theta, d2 = helical_axis_data(pose, self.n_repeats)
+        self._params_dict = {
+            "axis_direction": s,
+            "axis_point": C,
+            "rotation_about": theta,
+            "translation_along": d2,
+        }
+
+        self.value = [
+            self._params_dict["axis_direction"],
+            self._params_dict["axis_point"],
+            self._params_dict["rotation_about"],
+            self._params_dict["translation_along"],
+        ]
+
+        return self.value
+
+    def score(self):
+        self.compute()
+        mid_t = np.pi / (90)
+        max_val_t = 1
+        steep_t = 0.08
+        rescaled_theta = max_val_t / (
+            1
+            + np.exp(
+                -1
+                * steep_t
+                * (
+                    self._params_dict["rotation_about"]
+                    - (np.pi * 2 / self.n_repeats)
+                    - mid_t
+                )
+            )
+        )
+        mid_d2 = 1
+        max_val_d2 = 1
+        steep_d2 = 0.08
+        rescaled_d2 = max_val_d2 / (
+            1
+            + np.exp(
+                -1
+                * steep_d2
+                * (self._params_dict["translation_along"] - mid_d2)
+            )
+        )
+        return (rescaled_d2 + rescaled_theta) / 2
+
+    def get_base_values(self):
+        name_dict = {self.loss_name: self.value}
+
+        all_dict = {**self._params_dict, **name_dict}
+        return all_dict
 
 
 class SAPLoss(Loss):
@@ -30,7 +105,7 @@ class SAPLoss(Loss):
         # )
         self.value = self.compute()
         self._information_string = f"""This loss computes total sap for the molecule.
-        Score rescales it between 0-1, higher is better (less sap)"""
+        Score rescales it between 0-1, lower is better (less sap)"""
 
     def compute(self):
 
@@ -107,6 +182,7 @@ global_losses_dict = {
     "sap_loss": SAPLoss,
     "sap_plddt_ptm_equal": SAPPlusDual,
     "sap_plddt_ptm_max": MaxSAPDual,
+    "cyclic_symm_loss": CyclicSymmLoss,
 }
 
 
