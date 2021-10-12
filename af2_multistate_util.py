@@ -189,6 +189,8 @@ def can_be_float(s):
         return True
     except ValueError:
         return False
+    except TypeError:
+        return False
 
 
 def is_int(s):
@@ -198,6 +200,8 @@ def is_int(s):
     try:
         return int(s) == float(s)
     except ValueError:
+        return False
+    except TypeError:
         return False
 
 

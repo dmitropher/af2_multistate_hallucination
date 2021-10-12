@@ -1,7 +1,10 @@
+import sys
 import numpy as np
 
 from pyrosetta.rosetta.core.kinematics import Stub
 
+import numba
+sys.path.append("/mnt/home/dzorine/software/homog")
 from homog.quat import rot_to_quat, quat_to_rot
 
 
@@ -63,7 +66,7 @@ def homog_super_transform_from_residues(res1, res2):
         rotation_translation_to_homog(stub_1.M, stub_1.v),
         rotation_translation_to_homog(stub_2.M, stub_2.v),
     )
-    hstub1_inv = np.linalg.invert(hstub1)
+    hstub1_inv = np.linalg.inv(hstub1)
     return hstub2 @ hstub1_inv
 
 
