@@ -20,8 +20,8 @@ class CyclicSymmLoss(Loss):
         super().__init__(oligo_obj=None, **params)
         self.oligo = oligo_obj
         pyrosetta.distributed.maybe_init()
-        self.value = self.compute()
         self._n_repeats = len(self.oligo.subunits)
+        self.value = self.compute()
         self._information_string = f"""This loss computes deviation from ideal cyclic.
         Score rescales it between 0-1, lower is better"""
 
@@ -31,7 +31,7 @@ class CyclicSymmLoss(Loss):
         dummy_path = dummy.name
         pose = pyrosetta.pose_from_file(dummy_path)
 
-        s, C, theta, d2 = helical_axis_data(pose, self.n_repeats)
+        s, C, theta, d2 = helical_axis_data(pose, self._n_repeats)
         self._params_dict = {
             "axis_direction": s,
             "axis_point": C,
@@ -50,38 +50,40 @@ class CyclicSymmLoss(Loss):
 
     def score(self):
         self.compute()
-        mid_t = np.pi / (90)
+        d_rotation = np.degrees(abs(self._params_dict["rotation_about"] - (np.pi * 2 / self._n_repeats)))
+        mid_t = 4
         max_val_t = 1
-        steep_t = 0.08
+        steep_t = 1.5
         rescaled_theta = max_val_t / (
             1
             + np.exp(
                 -1
                 * steep_t
-                * (
-                    self._params_dict["rotation_about"]
-                    - (np.pi * 2 / self.n_repeats)
+                * (d_rotation
+
                     - mid_t
                 )
             )
         )
-        mid_d2 = 1
+        mid_d2 = 2
         max_val_d2 = 1
-        steep_d2 = 0.08
+        steep_d2 = 2
         rescaled_d2 = max_val_d2 / (
             1
             + np.exp(
                 -1
                 * steep_d2
-                * (self._params_dict["translation_along"] - mid_d2)
+                * (np.linalg.norm(self._params_dict["translation_along"]) - mid_d2)
             )
         )
         return (rescaled_d2 + rescaled_theta) / 2
 
     def get_base_values(self):
-        name_dict = {self.loss_name: self.value}
+        name_dict = {self.loss_name: self.score()}
+        data_dict = {"d_rise":np.linalg.norm(self._params_dict["translation_along"]),"d_rotation":np.degrees(abs(self._params_dict["rotation_about"] - (np.pi * 2 / self._n_repeats))),"raw_rotation":np.degrees(self._params_dict["rotation_about"])
+        - (np.pi * 2 / self._n_repeats)}
 
-        all_dict = {**self._params_dict, **name_dict}
+        all_dict = {**data_dict, **name_dict}
         return all_dict
 
 
