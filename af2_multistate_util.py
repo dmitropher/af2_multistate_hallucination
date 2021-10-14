@@ -5,6 +5,9 @@ import numpy as np
 from af2_net import amber_relax, protein
 from scoring import Score
 
+sys.path.append("/software/pyrosetta3.8/latest/")
+import pyrosetta
+
 
 def seq_with_breaks_from_oligo(oligo):
     """
@@ -178,6 +181,64 @@ def oligo_to_pdb_file(
             for key in score_container.get_keys():
                 f.write(f"{key} {score_container.get_score(key)}\n")
         f.write(f"# {str(user_args)}\n")
+
+
+def oligo_to_silent(
+    oligo, tag, step, silent_out_path, user_args, score_container=None
+):
+    """
+    Outputs the given "oligo" as a pdb in the dir given by out_path
+
+    step is the suffix (step generated) after the name
+    """
+    if user_args.amber_relax == 0:
+        pdb_lines = protein.to_pdb(oligo.current_unrelaxed_structure).split(
+            "\n"
+        )
+    elif user_args.amber_relax == 1:
+        pdb_lines = amber_relax(oligo.current_unrelaxed_structure).split("\n")
+
+    # Identify chain breaks and re-assign chains correctly before generating PDB file.
+    split_lines = [l.split() for l in pdb_lines if "ATOM" in l]
+    split_lines = np.array(
+        [
+            l[:4] + [l[4][0]] + [l[4][1:]] + l[5:] if len(l) < 12 else l
+            for l in split_lines
+        ]
+    )  # chain and resid no longer space-separated at high resid.
+    splits = (
+        np.argwhere(np.diff(split_lines.T[5].astype(int)) > 1).flatten() + 1
+    )  # identify idx of chain breaks based on resid jump.
+    splits = np.append(splits, len(split_lines))
+    chains = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    chain_str = ""
+    prev = 0
+    for ch, resid in enumerate(splits):  # make new chain string
+        length = resid - prev
+        chain_str += chains[ch] * length
+        prev = resid
+    atom_lines = [l for l in pdb_lines if "ATOM" in l]
+    new_lines = [
+        l[:21] + chain_str[k] + l[22:]
+        for k, l in enumerate(atom_lines)
+        if "ATOM" in l
+    ]  # generate chain-corrected PDB lines.
+    out_pose = pyrosetta.rosetta.core.import_pose.pose_from_pdbstring(
+        new_lines
+    )
+    silent_name = silent_out_path
+    sfd_out = pyrosetta.rosetta.core.io.silent.SilentFileData(
+        silent_name,
+        False,
+        False,
+        "binary",
+        pyrosetta.rosetta.core.io.silent.SilentFileOptions(),
+    )
+    struct = sfd_out.create_SilentStructOP()
+    name_no_suffix = f"{tag}_{oligo.name}_step_{step:05d}"
+    struct.fill_struct(out_pose, name_no_suffix)
+    sfd_out.add_structure(struct)
+    sfd_out.write_all(silent_name, False)
 
 
 def can_be_float(s):

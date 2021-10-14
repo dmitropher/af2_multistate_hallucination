@@ -50,20 +50,17 @@ class CyclicSymmLoss(Loss):
 
     def score(self):
         self.compute()
-        d_rotation = np.degrees(abs(self._params_dict["rotation_about"] - (np.pi * 2 / self._n_repeats)))
+        d_rotation = np.degrees(
+            abs(
+                self._params_dict["rotation_about"]
+                - (np.pi * 2 / self._n_repeats)
+            )
+        )
         mid_t = 4
         max_val_t = 1
         steep_t = 1.5
         rescaled_theta = max_val_t / (
-            1
-            + np.exp(
-                -1
-                * steep_t
-                * (d_rotation
-
-                    - mid_t
-                )
-            )
+            1 + np.exp(-1 * steep_t * (d_rotation - mid_t))
         )
         mid_d2 = 2
         max_val_d2 = 1
@@ -73,18 +70,50 @@ class CyclicSymmLoss(Loss):
             + np.exp(
                 -1
                 * steep_d2
-                * (np.linalg.norm(self._params_dict["translation_along"]) - mid_d2)
+                * (
+                    np.linalg.norm(self._params_dict["translation_along"])
+                    - mid_d2
+                )
             )
         )
         return (rescaled_d2 + rescaled_theta) / 2
 
     def get_base_values(self):
         name_dict = {self.loss_name: self.score()}
-        data_dict = {"d_rise":np.linalg.norm(self._params_dict["translation_along"]),"d_rotation":np.degrees(abs(self._params_dict["rotation_about"] - (np.pi * 2 / self._n_repeats))),"raw_rotation":np.degrees(self._params_dict["rotation_about"])
-        - (np.pi * 2 / self._n_repeats)}
+        data_dict = {
+            "d_rise": np.linalg.norm(self._params_dict["translation_along"]),
+            "d_rotation": np.degrees(
+                abs(
+                    self._params_dict["rotation_about"]
+                    - (np.pi * 2 / self._n_repeats)
+                )
+            ),
+            "raw_rotation": np.degrees(self._params_dict["rotation_about"])
+            - (np.pi * 2 / self._n_repeats),
+        }
 
         all_dict = {**data_dict, **name_dict}
         return all_dict
+
+
+class CyclicPlusDual(weightedLoss):
+    def __init__(
+        self, loss_name="cyclic_dual_2t1", oligo_obj=None, **user_kwargs
+    ):
+        """
+        init for this combined loss, dual is downweighted to half of cyclic
+        """
+        super().__init__(
+            dualLoss(oligo_obj=oligo_obj, loss_name="dual"),
+            CyclicSymmLoss(
+                oligo_obj=oligo_obj, loss_name="cyclic_loss", **user_kwargs
+            ),
+            weights={"cyclic_loss": (2 / 3), "dual": (1 / 3)},
+            even=False,
+            invert=False,
+            **user_kwargs,
+        )
+        self._information_string = f"""Three part loss, cyclic, plddt, ptm. Cyclic is 2:1 weighted above the average of the other two"""
 
 
 class SAPLoss(Loss):
@@ -185,6 +214,7 @@ global_losses_dict = {
     "sap_plddt_ptm_equal": SAPPlusDual,
     "sap_plddt_ptm_max": MaxSAPDual,
     "cyclic_symm_loss": CyclicSymmLoss,
+    "cyclic_dual_2t1": CyclicPlusDual,
 }
 
 
