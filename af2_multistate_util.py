@@ -191,6 +191,8 @@ def oligo_to_silent(
 
     step is the suffix (step generated) after the name
     """
+
+    pyrosetta.distributed.maybe_init()
     if user_args.amber_relax == 0:
         pdb_lines = protein.to_pdb(oligo.current_unrelaxed_structure).split(
             "\n"
