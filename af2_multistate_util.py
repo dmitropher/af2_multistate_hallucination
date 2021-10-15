@@ -1,4 +1,5 @@
 import os.path
+import sys
 
 import numpy as np
 
@@ -305,8 +306,10 @@ def oligo_to_silent(
         for k, l in enumerate(atom_lines)
         if "ATOM" in l
     ]  # generate chain-corrected PDB lines.
-    out_pose = pyrosetta.rosetta.core.import_pose.pose_from_pdbstring(
-        new_lines
+    pdb_string = "\n".join(new_lines)
+    out_pose = pyrosetta.rosetta.core.pose.Pose()
+    pyrosetta.rosetta.core.import_pose.pose_from_pdbstring(out_pose,
+        pdb_string
     )
     silent_name = silent_out_path
     sfd_out = pyrosetta.rosetta.core.io.silent.SilentFileData(
