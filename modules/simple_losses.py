@@ -423,6 +423,7 @@ global_losses_dict = {
     "dual_cyclic": dualCyclicLoss,
     "separation": separationLoss,
     "max_dssp_ptm_lddt": maxDSSPptmlDDT,
+    "frac_dssp":fracDSSPLoss,
 }
 
 
