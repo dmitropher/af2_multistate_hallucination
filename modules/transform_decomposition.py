@@ -4,6 +4,7 @@ import numpy as np
 from pyrosetta.rosetta.core.kinematics import Stub
 
 import numba
+
 sys.path.append("/mnt/home/dzorine/software/homog")
 from homog.quat import rot_to_quat, quat_to_rot
 
@@ -12,7 +13,7 @@ def average_quats_mean(quats, weights=[]):
     """
     """
     # print (quats)
-    qavg = np.empty(4)
+    qavg = np.zeros(4)
     if not weights:
         weights = np.ones(len(quats))
     for i in range(len(quats)):
@@ -100,7 +101,7 @@ def repeat_xform_from_pose(pose, n_repeats):
 
     new_rot = quat_to_rot(qavg)
     new_translation = np.sum(translations, 0) / translations.shape[0]
-    avg_xform = np.empty((4, 4))
+    avg_xform = np.zeros((4, 4))
     avg_xform[:3, :3] = new_rot
     avg_xform[:3, 3] = new_translation
     avg_xform[3, :] = np.array([0, 0, 0, 1])
@@ -133,4 +134,4 @@ def helical_axis_data(pose, n_repeats):
         2 * np.dot(rod_vector, rod_vector)
     )
 
-    return s, C, theta, d2
+    return s, C, theta, d2, dstar

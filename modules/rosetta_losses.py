@@ -31,19 +31,21 @@ class CyclicSymmLoss(Loss):
         dummy_path = dummy.name
         pose = pyrosetta.pose_from_file(dummy_path)
 
-        s, C, theta, d2 = helical_axis_data(pose, self._n_repeats)
+        s, C, theta, d2, dstar = helical_axis_data(pose, self._n_repeats)
         self._params_dict = {
             "axis_direction": s,
             "axis_point": C,
             "rotation_about": theta,
-            "translation_along": d2,
+            "d2": d2,
+            "dstar": dstar,
         }
 
         self.value = [
             self._params_dict["axis_direction"],
             self._params_dict["axis_point"],
             self._params_dict["rotation_about"],
-            self._params_dict["translation_along"],
+            self._params_dict["d2"],
+            self._params_dict["dstar"],
         ]
 
         return self.value
@@ -70,10 +72,7 @@ class CyclicSymmLoss(Loss):
             + np.exp(
                 -1
                 * steep_d2
-                * (
-                    np.linalg.norm(self._params_dict["translation_along"])
-                    - mid_d2
-                )
+                * (np.linalg.norm(self._params_dict["d2"]) - mid_d2)
             )
         )
         return (rescaled_d2 + rescaled_theta) / 2
@@ -81,7 +80,8 @@ class CyclicSymmLoss(Loss):
     def get_base_values(self):
         name_dict = {self.loss_name: self.score()}
         data_dict = {
-            "d_rise": np.linalg.norm(self._params_dict["translation_along"]),
+            "d2": np.linalg.norm(self._params_dict["d2"]),
+            "dstar": np.linalg.norm(self._params_dict["dstar"]),
             "d_rotation": np.degrees(
                 abs(
                     self._params_dict["rotation_about"]
