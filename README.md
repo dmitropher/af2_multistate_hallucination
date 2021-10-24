@@ -29,7 +29,8 @@ Summary
   - `dual_dssp`: jointly optimises ptm and plddt (equal weights) as well as enforcing a specific secondary structure content as computed by DSSP on the structure.
   - `tmalign`: loss defined as TM-score to template PDB.
   - `dual_tmalgin`: jointly optimises ptm, plddt and TM-score.
-  - `pae_asym_tmalign`: in development. 
+  - `pae_asym_tmalign`: in development.
+  - `aspect_ratio`: geometric term that enforces protomers with aspect ratios close to 1 (i.e. spherical).  
 
 Minimal inputs
 --------------
@@ -63,5 +64,4 @@ Outputs
 To-do
 -----
 - A CCE-based loss to enable constrained hallucination based on an input structure?
-- Check AA frequencies.
 - Check if normalising pae and pae-derived losses by their init value is an appropriate scaling method?
