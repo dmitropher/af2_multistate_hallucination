@@ -362,6 +362,9 @@ for i in range(args.steps):
                 print(f'Step {i:05d}: change rejected >> LOSS {current_loss:2.3f} !-> {try_loss:2.3f}')
                 print('-' * 70)
 
+        sys.stdout.flush()
+
+
         # Save PDB if move was accepted.
         if accepted == True:
 
