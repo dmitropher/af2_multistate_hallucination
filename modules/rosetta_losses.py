@@ -38,6 +38,7 @@ class CyclicSymmLoss(Loss):
             "rotation_about": theta,
             "d2": d2,
             "dstar": dstar,
+            "rise": np.dot(-d2 / np.linalg.norm(d2), d2 + dstar),
         }
 
         self.value = [
@@ -46,6 +47,7 @@ class CyclicSymmLoss(Loss):
             self._params_dict["rotation_about"],
             self._params_dict["d2"],
             self._params_dict["dstar"],
+            self._params_dict["rise"],
         ]
 
         return self.value
@@ -64,32 +66,32 @@ class CyclicSymmLoss(Loss):
         rescaled_theta = max_val_t / (
             1 + np.exp(-1 * steep_t * (d_rotation - mid_t))
         )
-        mid_d2 = 2
-        max_val_d2 = 1
-        steep_d2 = 2
-        rescaled_d2 = max_val_d2 / (
+        mid_rise = 2
+        max_val_rise = 1
+        steep_rise = 2
+        rescaled_rise = max_val_rise / (
             1
             + np.exp(
                 -1
-                * steep_d2
-                * (np.linalg.norm(self._params_dict["d2"]) - mid_d2)
+                * steep_rise
+                * (np.linalg.norm(self._params_dict["rise"]) - mid_rise)
             )
         )
-        return (rescaled_d2 + rescaled_theta) / 2
+        return (rescaled_rise + rescaled_theta) / 2
 
     def get_base_values(self):
         name_dict = {self.loss_name: self.score()}
         data_dict = {
             "d2": np.linalg.norm(self._params_dict["d2"]),
             "dstar": np.linalg.norm(self._params_dict["dstar"]),
+            "rise": np.linalg.norm(self._params_dict["rise"]),
             "d_rotation": np.degrees(
                 abs(
                     self._params_dict["rotation_about"]
                     - (np.pi * 2 / self._n_repeats)
                 )
             ),
-            "raw_rotation": np.degrees(self._params_dict["rotation_about"])
-            - (np.pi * 2 / self._n_repeats),
+            "raw_rotation": np.degrees(self._params_dict["rotation_about"]),
         }
 
         all_dict = {**data_dict, **name_dict}

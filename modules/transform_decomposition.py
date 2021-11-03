@@ -126,7 +126,7 @@ def helical_axis_data(pose, n_repeats):
     rod_mag = np.linalg.norm(rod_vector)
     s = rod_vector / rod_mag
     theta = 2 * np.arctan(rod_mag)
-    k = np.tan(theta / 2)
+    k = rod_mag  # np.tan(theta / 2)
     d2 = -(k * s)
     dstar = d - d2
     # C is the reference point for the screw axis
