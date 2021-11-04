@@ -38,7 +38,7 @@ class CyclicSymmLoss(Loss):
             "rotation_about": theta,
             "d2": d2,
             "dstar": dstar,
-            "rise": np.dot(-d2 / np.linalg.norm(d2), d2 + dstar),
+            "rise": np.dot(d2 / np.linalg.norm(d2), d2 + dstar),
         }
 
         self.value = [
@@ -74,7 +74,7 @@ class CyclicSymmLoss(Loss):
             + np.exp(
                 -1
                 * steep_rise
-                * (np.linalg.norm(self._params_dict["rise"]) - mid_rise)
+                * (abs(self._params_dict["rise"]) - mid_rise)
             )
         )
         return (rescaled_rise + rescaled_theta) / 2
