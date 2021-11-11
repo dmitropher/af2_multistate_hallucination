@@ -314,6 +314,43 @@ class fracDSSPLoss(Loss):
         return self.logistic_rescale()
 
 
+
+class fuzzyFracDSSPLoss(fracDSSPLoss):
+    """
+    Loss based on mean deviation from user specified fraction dssp
+    """
+
+    def __init__(self, oligo_obj=None, **user_kwargs):
+        super().__init__(oligo_obj=oligo_obj, **user_kwargs)
+
+        self._information_string = f"""This loss object for: {self.loss_name}.
+        This loss computes the deviation from the desired fraction dssp
+        Value is the mean deviation from desired fraction dssp.
+        The delta values for this version of the loss are overriden when they approach 0
+        get_base_values is overwridden to provide raw dssp deviation for each type
+        Score is a logistically reweighted value from 0-1, lower is better"""
+
+    def compute(self):
+        dummy = dummy_pdbfile(self.oligo)
+        dummy_path = dummy.name
+        frac_beta, frac_alpha, frac_other = calculate_dssp_fractions(
+            dssp_wrapper(dummy_path)
+        )
+        dummy.close()
+        actual = {"E": frac_beta, "H": frac_alpha, "O": frac_other}
+        chosen_fracs = self.desired_dssp.keys()
+        self._delta_dssp = {
+            ("delta_" + key): (abs(actual[key] - self.desired_dssp[key]))
+            for key in chosen_fracs
+        }
+        make_fuzzy = lambda val: val if val > 0.1 else 0
+        self._fuzzy_delta_dssp = {
+            ("fuzzy_delta_" + key): (make_fuzzy(abs(actual[key] - self.desired_dssp[key])))
+            for key in chosen_fracs
+        }
+        self.value = np.mean(list(self._fuzzy_delta_dssp.values()))
+        return self.value
+
 # TODO change this to a logisically mapped rescale, with some TMAlign midpoint around 2 or something
 # (rmsd greater than 2 is worse than linearly bad),less than 2 is better than linearly bad
 class tmAlignLoss(Loss):
@@ -423,7 +460,8 @@ global_losses_dict = {
     "dual_cyclic": dualCyclicLoss,
     "separation": separationLoss,
     "max_dssp_ptm_lddt": maxDSSPptmlDDT,
-    "frac_dssp":fracDSSPLoss,
+    "frac_dssp": fracDSSPLoss,
+    "fuzzy_frac_dssp": fuzzyFracDSSPLoss,
 }
 
 
