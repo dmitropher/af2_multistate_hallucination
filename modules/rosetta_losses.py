@@ -60,23 +60,25 @@ class CyclicSymmLoss(Loss):
                 - (np.pi * 2 / self._n_repeats)
             )
         )
-        mid_t = 4
-        max_val_t = 1
-        steep_t = 1.5
-        rescaled_theta = max_val_t / (
-            1 + np.exp(-1 * steep_t * (d_rotation - mid_t))
+        # mid_t = 4
+        # max_val_t = 1
+        # steep_t = 1.5
+        rescaled_theta = self.logistic_rescale(4, 1, 1.5, val=d_rotation)
+        # rescaled_theta = max_val_t / (
+        #     1 + np.exp(-1 * steep_t * (d_rotation - mid_t))
+        # )
+        # mid_rise = 2
+        # max_val_rise = 1
+        # steep_rise = 2
+        rescaled_rise = self.logistic_rescale(
+            2, 1, 2, val=abs(self._params_dict["rise"])
         )
-        mid_rise = 2
-        max_val_rise = 1
-        steep_rise = 2
-        rescaled_rise = max_val_rise / (
-            1
-            + np.exp(
-                -1
-                * steep_rise
-                * (abs(self._params_dict["rise"]) - mid_rise)
-            )
-        )
+        # rescaled_rise = max_val_rise / (
+        #     1
+        #     + np.exp(
+        #         -1 * steep_rise * (abs(self._params_dict["rise"]) - mid_rise)
+        #     )
+        # )
         return (rescaled_rise + rescaled_theta) / 2
 
     def get_base_values(self):

@@ -3,6 +3,7 @@ import sys
 import numpy as np
 
 from Bio.PDB.DSSP import dssp_dict_from_pdb_file
+from Bio import pairwise2
 
 sys.path.append("/projects/ml/alphafold/alphafold_git/")
 from alphafold.common import protein
@@ -231,3 +232,16 @@ def tm_score(oligo, template, template_alignment, temp_out=""):
     )
     print("   tm_RMSD, tmscore ", tm_rmsd, tm_score)
     return tm_score
+
+
+def dssp_diff(dssp_str_1, dssp_str_2):
+    """
+    Takes str1 and 2 and returns score and max possible
+
+    Assumes that dssp_str_1 is the target and 2 is the query
+    """
+    align_score = pairwise2.align.globalxs(
+        dssp_str_1, dssp_str_2, score_only=True
+    )
+    max_score = len(dssp_str_1)
+    return align_score, max_score
