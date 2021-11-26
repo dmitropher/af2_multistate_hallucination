@@ -1,3 +1,6 @@
+import numpy as np
+
+
 class LossFactory:
     """
     LossFactory builds and returns a loss objects
@@ -83,6 +86,11 @@ class Loss(object):
         "score()" returns a rescaled value from 0 to 1 to be used as a loss
         """
         return self.value
+
+    def logistic_rescale(self, mid, max_val, steep, val=None):
+        if val is None:
+            val = self.value
+        return max_val / (1 + np.exp(-1 * steep * (val - mid)))
 
     def info(self):
         return self._information_string

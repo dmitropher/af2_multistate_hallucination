@@ -1,4 +1,5 @@
 import numpy as np
+from itertools import groupby
 
 from loss_factory import Loss, CombinedLoss, get_loss_creator
 from loss_functions import (
@@ -8,6 +9,7 @@ from loss_functions import (
     tm_score,
     dssp_wrapper,
     calculate_dssp_fractions,
+    dssp_diff,
 )
 from file_io import dummy_pdbfile
 
@@ -298,11 +300,11 @@ class fracDSSPLoss(Loss):
         self.value = np.mean(list(self._delta_dssp.values()))
         return self.value
 
-    def logistic_rescale(self,):
-        mid = 0.25
-        max_val = 1
-        steep = 10
-        return max_val / (1 + np.exp(-1 * steep * (self.value - mid)))
+    # def logistic_rescale(self,):
+    #     mid = 0.25
+    #     max_val = 1
+    #     steep = 10
+    #     return max_val / (1 + np.exp(-1 * steep * (self.value - mid)))
 
     def get_base_values(self):
         name_dict = {self.loss_name: self.value}
@@ -311,8 +313,7 @@ class fracDSSPLoss(Loss):
 
     # TODO: allow logistical parameters to be rescaled from user_args
     def score(self):
-        return self.logistic_rescale()
-
+        return self.logistic_rescale(0.25, 1, 10)
 
 
 class fuzzyFracDSSPLoss(fracDSSPLoss):
@@ -345,11 +346,58 @@ class fuzzyFracDSSPLoss(fracDSSPLoss):
         }
         make_fuzzy = lambda val: val if val > 0.1 else 0
         self._fuzzy_delta_dssp = {
-            ("fuzzy_delta_" + key): (make_fuzzy(abs(actual[key] - self.desired_dssp[key])))
+            ("fuzzy_delta_" + key): (
+                make_fuzzy(abs(actual[key] - self.desired_dssp[key]))
+            )
             for key in chosen_fracs
         }
         self.value = np.mean(list(self._fuzzy_delta_dssp.values()))
         return self.value
+
+
+class dsspFoldProxyLoss(Loss):
+    """
+    Loss based on mean deviation from user specified fraction dssp
+    """
+
+    def __init__(self, oligo_obj=None, **user_kwargs):
+
+        super().__init__(oligo_obj=oligo_obj, **user_kwargs)
+        dssp_target_pattern = user_kwargs["loss_params"]
+        self.oligo = oligo_obj
+        self._target_dssp_fold_string = dssp_target_pattern
+        self.value = self.compute()
+        self._information_string = f"""This loss object for: {self.loss_name}.
+        This loss computes the deviation from the desired pattern of dssp
+        Value is the current dssp pattern. Deviation is computed by BioPython
+        dynamic programming global alignment with gaps
+        Score is reweighted value from 0-1, lower is better"""
+
+    def compute(self):
+        dummy = dummy_pdbfile(self.oligo)
+        dummy_path = dummy.name
+        dssp_string = "".join(dssp_wrapper(dummy_path))
+        dummy.close()
+        foldssp = "".join(["".join(x for x, y in groupby(dssp_string))])
+        self._current_dssp_fold_string = foldssp
+        align, max = dssp_diff(
+            self._target_dssp_fold_string, self._current_dssp_fold_string
+        )
+        self.value = align / max
+        return self.value
+
+    def get_base_values(self):
+        all_dict = {
+            self.loss_name: self.value,
+            "target_dssp_pattern": self._target_dssp_fold_string,
+            "current_dssp_pattern": self._current_dssp_fold_string,
+        }
+        return all_dict
+
+    # TODO: allow logistical parameters to be rescaled from user_args
+    def score(self):
+        return 1 - self.logistic_rescale(0.25, 1, 10)
+
 
 # TODO change this to a logisically mapped rescale, with some TMAlign midpoint around 2 or something
 # (rmsd greater than 2 is worse than linearly bad),less than 2 is better than linearly bad

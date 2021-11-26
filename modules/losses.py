@@ -505,13 +505,14 @@ def compute_loss(loss_names, oligo, args, loss_weights, score_container=None):
     # intialize scores
     scores = []
     # iterate over all losses
-    args_dict = vars(args)
+    # args_dict = vars(args)
 
     main_creator = get_creator_from_dicts(
         get_simple_loss_dict(), get_rosetta_loss_dict()
     )
 
     for loss_idx, current_loss in enumerate(loss_names):
+        args_dict = vars(args)
         loss_type, loss_params = current_loss
         args_dict["loss_params"] = loss_params
         loss_obj = main_creator.get_loss(
