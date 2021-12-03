@@ -1,6 +1,7 @@
 import sys
 
 import numpy as np
+from json import loads
 
 sys.path.append("/software/pyrosetta3.8/latest/")
 import pyrosetta
@@ -8,7 +9,10 @@ import pyrosetta
 from file_io import dummy_pdbfile
 from loss_factory import Loss, get_loss_creator
 from simple_losses import weightedLoss, dualLoss, maxLoss
-from transform_decomposition import helical_axis_data
+from transform_decomposition import (
+    helical_axis_data,
+    helical_axis_to_rise_rotation_radius_axis,
+)
 
 
 class CyclicSymmLoss(Loss):
@@ -82,6 +86,97 @@ class CyclicSymmLoss(Loss):
                 )
             ),
             "raw_rotation": np.degrees(self._params_dict["rotation_about"]),
+        }
+
+        all_dict = {**data_dict, **name_dict}
+        return all_dict
+
+
+class CyclicParamLoss(Loss):
+    """
+    Value is the SAP score of the protein oligo when loaded
+    """
+
+    def __init__(self, oligo_obj=None, **params):
+        super().__init__(oligo_obj=None, **params)
+        self.oligo = oligo_obj
+        pyrosetta.distributed.maybe_init()
+        self._n_repeats = len(self.oligo.subunits)
+        self.value = self.compute()
+        config = params["loss_params"]
+        self._helical_param_reference = loads(config)
+        self._information_string = f"""This loss computes deviation from ideal cyclic.
+        Score rescales it between 0-1, lower is better"""
+
+    def compute(self):
+
+        dummy = dummy_pdbfile(self.oligo)
+        dummy_path = dummy.name
+        pose = pyrosetta.pose_from_file(dummy_path)
+
+        s, C, theta, d2, dstar = helical_axis_data(pose, self._n_repeats)
+        rise, rotation, s, C, radius = helical_axis_to_rise_rotation_radius_axis(
+            s, C, theta, d2, dstar
+        )
+        self._params_dict = {
+            "axis_direction": s,
+            "axis_point": C,
+            "rota": theta,
+            "d2": d2,
+            "dstar": dstar,
+            "rise": rise,
+            "radi": radius,
+        }
+
+        self.value = [
+            self._params_dict["axis_direction"],
+            self._params_dict["axis_point"],
+            self._params_dict["rota"],
+            self._params_dict["d2"],
+            self._params_dict["dstar"],
+            self._params_dict["rise"],
+            self._params_dict["radi"],
+        ]
+
+        return self.value
+
+    def score(self):
+        self.compute()
+        deltas_dict = {}
+        for key in self._helical_param_reference.keys():
+
+            if key in self._params_dict.keys():
+
+                delta_val = abs(
+                    self._params_dict[key] - self._helical_param_reference[key]
+                )
+                deltas_dict[key] = delta_val
+        deltas_keys = deltas_dict.keys()
+        rescaled_list = []
+        if "rota" in deltas_keys:
+            rescaled_theta = self.logistic_rescale(
+                4, 1, 1.5, val=np.degrees(deltas_dict["rotation"])
+            )
+            rescaled_list.append(rescaled_theta)
+        if "rise" in deltas_keys:
+            rescaled_rise = self.logistic_rescale(
+                2, 1, 2, val=abs(deltas_dict["rise"])
+            )
+            rescaled_list.append(rescaled_rise)
+        if "radi" in deltas_keys:
+            rescaled_rise = self.logistic_rescale(
+                2, 1, 2, val=deltas_dict["radius"]
+            )
+            rescaled_list.append(rescaled_rise)
+
+        return sum(rescaled_list) / len(rescaled_list)
+
+    def get_base_values(self):
+        name_dict = {self.loss_name: self.score()}
+        data_dict = {
+            "rise": self._params_dict["rise"],
+            "rota": np.degrees(self._params_dict["rota"]),
+            "radi": self._params_dict["radius"],
         }
 
         all_dict = {**data_dict, **name_dict}
@@ -204,6 +299,7 @@ global_losses_dict = {
     "sap_plddt_ptm_max": MaxSAPDual,
     "cyclic_symm_loss": CyclicSymmLoss,
     "cyclic_dual_2t1": CyclicPlusDual,
+    "helical_param_loss": CyclicParamLoss,
 }
 
 
