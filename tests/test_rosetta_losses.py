@@ -18,6 +18,16 @@ import pyrosetta
 from alphafold.protein import Protein
 
 
+def mock_oligo_from_pdb(pdb_path):
+    test_protein = Protein()
+    with open(pdb_path, "r") as f:
+        pdb_str = f.read()
+        test_protein.from_pdb_string(pdb_str)
+    test_oligo = Mock()
+    test_oligo.try_unrelaxed_structure = test_protein
+    return test_oligo
+
+
 class TestCyclicSymmLoss:
     def mock_oligo_from_pdb(self, pdb_path):
         test_protein = Protein()
@@ -33,11 +43,11 @@ class TestCyclicSymmLoss:
         self.monkey_pdb_path = resources + "/monkey.pdb"
         self.good_c3_pdb_path = resources + "/good_c3.pdb"
         test_oligo = Mock()
-        test_oligo.try_unrelaxed_structure = self.mock_oligo_from_pdb(
+        test_oligo.try_unrelaxed_structure = mock_oligo_from_pdb(
             self.monkey_pdb_path
         )
         test_oligo_good_c3 = Mock()
-        test_oligo_good_c3.try_unrelaxed_structure = self.mock_oligo_from_pdb(
+        test_oligo_good_c3.try_unrelaxed_structure = mock_oligo_from_pdb(
             self.good_c3_pdb_path
         )
         self.cyc_loss = CyclicSymmLoss(oligo_obj=test_oligo)
@@ -81,23 +91,17 @@ class TestCyclicSymmLoss:
 
 
 class TestCyclicPlusDual:
-    def __init__(
-        self, loss_name="cyclic_dual_2t1", oligo_obj=None, **user_kwargs
-    ):
-        """
-        init for this combined loss, dual is downweighted to half of cyclic
-        """
-        super().__init__(
-            dualLoss(oligo_obj=oligo_obj, loss_name="dual"),
-            CyclicSymmLoss(
-                oligo_obj=oligo_obj, loss_name="cyclic_loss", **user_kwargs
-            ),
-            weights={"cyclic_loss": (2 / 3), "dual": (1 / 3)},
-            even=False,
-            invert=False,
-            **user_kwargs,
+    def setup(self):
+        resources = os.path.dirname(__file__) + "test_resources"
+        self.monkey_pdb_path = resources + "/monkey.pdb"
+        self.cyc_dual_2t1 = CyclicPlusDual(
+            loss_name="cyclic_plus_dual_2t1",
+            oligo=mock_oligo_from_pdb(self.monkey_pdb_path),
         )
-        self._information_string = f"""Three part loss, cyclic, plddt, ptm. Cyclic is 2:1 weighted above the average of the other two"""
+
+    def test_weights(self):
+        assert self.cyc_dual_2t1.weights["sap_loss"] == 1 / 3
+        assert self.cyc_dual_2t1.weights["dual"] == 2 / 3
 
 
 class TestSAPLoss:
