@@ -178,7 +178,7 @@ class CyclicParamLoss(Loss):
         data_dict = {
             "rise": self._params_dict["rise"],
             "rota": np.degrees(self._params_dict["rota"]),
-            "radi": self._params_dict["radius"],
+            "radi": self._params_dict["radi"],
         }
 
         all_dict = {**data_dict, **name_dict}
