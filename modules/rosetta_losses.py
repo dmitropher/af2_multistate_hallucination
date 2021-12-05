@@ -104,7 +104,7 @@ class CyclicParamLoss(Loss):
         self._n_repeats = len(self.oligo.subunits)
         self.value = self.compute()
         config = params["loss_params"]
-        self._helical_param_reference = load(config)
+        self._helical_param_reference = load(config[0])
         self._information_string = f"""This loss computes deviation from ideal cyclic.
         Score rescales it between 0-1, lower is better"""
 
