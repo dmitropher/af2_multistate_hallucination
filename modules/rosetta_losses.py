@@ -157,7 +157,7 @@ class CyclicParamLoss(Loss):
         rescaled_list = []
         if "rota" in deltas_keys:
             rescaled_theta = self.logistic_rescale(
-                4, 1, 1.5, val=np.degrees(deltas_dict["rotation"])
+                4, 1, 1.5, val=np.degrees(deltas_dict["rota"])
             )
             rescaled_list.append(rescaled_theta)
         if "rise" in deltas_keys:
@@ -167,7 +167,7 @@ class CyclicParamLoss(Loss):
             rescaled_list.append(rescaled_rise)
         if "radi" in deltas_keys:
             rescaled_rise = self.logistic_rescale(
-                2, 1, 2, val=deltas_dict["radius"]
+                2, 1, 2, val=deltas_dict["radi"]
             )
             rescaled_list.append(rescaled_rise)
 
