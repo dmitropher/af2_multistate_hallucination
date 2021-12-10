@@ -37,7 +37,7 @@ class Protomers:
                     np.random.choice(
                         list(self.aa_freq.keys()),
                         size=z[1],
-                        p=list(self.aa_freqvalues()),
+                        p=list(self.aa_freq.values()),
                     )
                 )
                 self.position_weights[z[0]] = np.ones(z[1]) / z[1]
