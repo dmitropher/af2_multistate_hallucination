@@ -497,10 +497,17 @@ def compute_loss(loss_names, oligo, args, loss_weights, score_container=None):
 
     # Normalize loss weights vector.
     loss_weights_normalized = np.array(loss_weights) / np.sum(loss_weights)
+    print(f"loss_weights_normalized: {loss_weights_normalized}")
 
+<<<<<<< HEAD
     # Total loss for this oligomer is the sum of its weighted scores.
     final_score = np.sum(np.array(scores) * loss_weights_normalized)
 
+=======
+    # Total loss for this oligomer is the average of its weighted scores.
+    final_score = np.sum(np.array(scores) * loss_weights_normalized)
+    print(f"final_score: {final_score}")
+>>>>>>> fixed scoring average bug
 
     # The loss counts positively or negatively to the overall loss depending on whether this oligomer is positively or negatively designed.
     if oligo.positive_design == True:
