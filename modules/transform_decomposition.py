@@ -138,8 +138,9 @@ def helical_axis_data(pose, n_repeats):
 
 
 def helical_axis_to_rise_rotation_radius_axis(s, C, theta, d2, dstar):
-    rise = abs(np.dot(d2 / np.linalg.norm(d2), d2 + dstar))
+    rise = np.dot(d2 / np.linalg.norm(d2), d2 + dstar)
     rotation = theta * (-1 if rise < 0 else 1)
+    rise = abs(rise)
     radius = np.dot(dstar / np.linalg.norm(dstar), d2 + dstar) / (
         2 * np.sin(theta / 2)
     )
