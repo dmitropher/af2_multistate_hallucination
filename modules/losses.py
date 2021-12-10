@@ -72,6 +72,9 @@ def compute_loss(loss_names, oligo, args, loss_weights, score_container=None):
             score = 1. - np.mean(aspect_ratios) # average aspect ratio across all protomers of an oligomer
 
         scores.append(score)
+
+        print(f"loss_type: {loss_type}")
+        print(f"scores: {scores}")
         if score_container is not None:
             score_container.add_scores(*scores_from_loss(loss_obj))
 
