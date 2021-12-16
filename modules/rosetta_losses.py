@@ -123,7 +123,7 @@ class CyclicParamLoss(Loss):
         self._params_dict = {
             "axis_direction": s,
             "axis_point": C,
-            "rota": theta,
+            "rota": rotation,
             "d2": d2,
             "dstar": dstar,
             "rise": rise,
