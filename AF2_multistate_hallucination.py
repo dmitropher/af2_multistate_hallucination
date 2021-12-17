@@ -362,6 +362,9 @@ for i in range(args.steps):
                 print(f'Step {i:05d}: change rejected >> LOSS {current_loss:2.3f} !-> {try_loss:2.3f}')
                 print('-' * 70)
 
+        sys.stdout.flush()
+
+
         # Save PDB if move was accepted.
         if accepted == True:
 
@@ -379,7 +382,9 @@ for i in range(args.steps):
                     split_lines = np.array([l[:4] + [l[4][0]] + [l[4][1:]] + l[5:] if len(l)<12 else l for l in split_lines]) # chain and resid no longer space-separated at high resid.
                     splits = np.argwhere(np.diff(split_lines.T[5].astype(int))>1).flatten() + 1 # identify idx of chain breaks based on resid jump.
                     splits = np.append(splits, len(split_lines))
-                    chains = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+                    chains = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 
+                            'AA', 'BB', 'CC', 'DD', 'EE', 'FF', 'GG', 'HH', 'II', 'JJ', 'KK', 'LL', 'MM', 'NN', 'OO', 'PP', 'QQ', 'RR', 'SS', 'TT', 'UU', 'VV', 'WW', 'XX', 'YY', 'ZZ', 
+                            'AAA', 'BBB', 'CCC', 'DDD', 'EEE', 'FFF', 'GGG', 'HHH', 'III', 'JJJ', 'KKK', 'LLL', 'MMM', 'NNN', 'OOO', 'PPP', 'QQQ', 'RRR', 'SSS', 'TTT', 'UUU', 'VVV', 'WWW', 'XXX', 'YYY', 'ZZZ']
                     chain_str = ''
                     prev = 0
                     for ch, resid in enumerate(splits): # make new chain string

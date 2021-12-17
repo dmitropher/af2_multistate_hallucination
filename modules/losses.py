@@ -8,6 +8,7 @@ from Bio.PDB.DSSP import DSSP
 from Bio.PDB.DSSP import dssp_dict_from_pdb_file
 # to run tmalign
 import subprocess
+from scipy import linalg
 
 
 ######################################################
@@ -17,7 +18,7 @@ import subprocess
 def get_coord(atom_type, oligo_object):
     '''
     General function to get the coordinates of an atom type in a pdb. For geometric-based losses.
-    Returns an array [chain, resid, x, y, z]
+    Returns an array [[chain, resid, x, y, z]]
     '''
     coordinates = []
     pdb_lines = protein.to_pdb(oligo_object.try_unrelaxed_structure).split('\n')
@@ -285,13 +286,31 @@ def compute_loss(losses, oligo, args, loss_weights):
 
             score = 1. - (np.mean(oligo.try_prediction_results['plddt']) / 2. ) - (oligo.try_prediction_results['ptm'] / 2.)
 
+        elif loss_type == 'aspect_ratio':
+            # NOTE:
+            # This loss adds a geometric term that forces an aspect ratio of 1 (spherical protomers) to prevent extended structures.
+            # At each step, the PDB is generated, and a singular value decomposition is performed on the coordinates of the CA atoms.
+            # The ratio of the two largest values is taken as the aspect ratio of the protomer.
+            # For oligomers, the aspect ratio is calculated for each protomer independently, and the average returned.
+
+            c = get_coord('CA', oligo) # get CA atoms, returns array [[chain, resid, x, y, z]]
+            aspect_ratios = []
+            chains = set(c[:,0])
+            for ch in chains:
+                coords = np.array([a[2:][0] for a in c[c[:,0]==ch]])
+                coords -= coords.mean(axis=0) # mean-center the protomer coordinates
+                s = linalg.svdvals(coords) # singular values of the coordinates
+                aspect_ratios.append(s[1] / s[0])
+
+            score = 1. - np.mean(aspect_ratios) # average aspect ratio across all protomers of an oligomer
+
         scores.append(score)
 
     # Normalize loss weights vector.
     loss_weights_normalized = np.array(loss_weights) / np.sum(loss_weights)
 
-    # Total loss for this oligomer is the average of its weighted scores.
-    final_score = np.mean( np.array(scores) * loss_weights_normalized )
+    # Total loss for this oligomer is the sum of its weighted scores.
+    final_score = np.sum(np.array(scores) * loss_weights_normalized)
 
     # The loss counts positively or negatively to the overall loss depending on whether this oligomer is positively or negatively designed.
     if oligo.positive_design == True:
