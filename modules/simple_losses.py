@@ -10,7 +10,9 @@ from loss_functions import (
     dssp_wrapper,
     calculate_dssp_fractions,
     dssp_diff,
+    get_coord,
 )
+from scipy import linalg
 from file_io import dummy_pdbfile
 
 
@@ -258,6 +260,45 @@ class separationLoss(Loss):
     def compute(self):
         self.value = get_separation_std(self.oligo)
         return self.value
+
+
+class AspectRatioLoss(Loss):
+    """
+    Loss based on separation of units in the oligo (standard deviation)
+    """
+
+    def __init__(self, oligo_obj=None, **user_kwargs):
+
+        super().__init__(oligo_obj=oligo_obj, **user_kwargs)
+        self.value = self.compute()
+        self.oligo = oligo_obj
+        self._information_string = f"""This loss object for: {self.loss_name}. This loss adds a geometric term that forces an aspect ratio of 1 (spherical protomers) to prevent extended structures.
+        At each step, the PDB is generated, and a singular value decomposition is performed on the coordinates of the CA atoms.
+        The ratio of the two largest values is taken as the aspect ratio of the protomer.
+        For oligomers, the aspect ratio is calculated for each protomer independently, and the average returned.
+        """
+
+    def compute(self):
+        c = get_coord(
+            "CA", self.oligo
+        )  # get CA atoms, returns array [[chain, resid, x, y, z]]
+        aspect_ratios = []
+        chains = set(c[:, 0])
+        for ch in chains:
+            coords = np.array([a[2:][0] for a in c[c[:, 0] == ch]])
+            coords -= coords.mean(
+                axis=0
+            )  # mean-center the protomer coordinates
+            s = linalg.svdvals(coords)  # singular values of the coordinates
+            aspect_ratios.append(s[1] / s[0])
+
+        self.value = np.mean(
+            aspect_ratios
+        )  # average aspect ratio across all protomers of an oligomer
+        return self.value
+
+    def score(self):
+        return 1 - self.value
 
 
 class fracDSSPLoss(Loss):
@@ -510,6 +551,7 @@ global_losses_dict = {
     "max_dssp_ptm_lddt": maxDSSPptmlDDT,
     "frac_dssp": fracDSSPLoss,
     "fuzzy_frac_dssp": fuzzyFracDSSPLoss,
+    "aspect_ratio": AspectRatioLoss,
 }
 
 
