@@ -111,6 +111,8 @@ def repeat_xform_from_pose(pose, n_repeats):
 
 def helical_axis_data(pose, n_repeats):
     """
+    Math here:
+    https://www.12000.org/my_notes/screw_axis/index.htm
     """
     xform = repeat_xform_from_pose(pose, n_repeats)
 

@@ -1,16 +1,17 @@
 # losses module
 
 import numpy as np
-import sys; sys.path.append('/projects/ml/alphafold/alphafold_git/')
+import sys
+
+sys.path.append("/projects/ml/alphafold/alphafold_git/")
 from alphafold.common import protein
+
 # dssp loss imports
 from Bio.PDB.DSSP import DSSP
 from Bio.PDB.DSSP import dssp_dict_from_pdb_file
+
 # to run tmalign
 import subprocess
-from scipy import linalg
-
-
 
 
 from scoring import scores_from_loss
@@ -51,25 +52,6 @@ def compute_loss(loss_names, oligo, args, loss_weights, score_container=None):
         )
         print(f"{loss_obj}")
         score = loss_obj.score()
-
-        #TODO: turn into loss object
-        elif loss_type == 'aspect_ratio':
-            # NOTE:
-            # This loss adds a geometric term that forces an aspect ratio of 1 (spherical protomers) to prevent extended structures.
-            # At each step, the PDB is generated, and a singular value decomposition is performed on the coordinates of the CA atoms.
-            # The ratio of the two largest values is taken as the aspect ratio of the protomer.
-            # For oligomers, the aspect ratio is calculated for each protomer independently, and the average returned.
-
-            c = get_coord('CA', oligo) # get CA atoms, returns array [[chain, resid, x, y, z]]
-            aspect_ratios = []
-            chains = set(c[:,0])
-            for ch in chains:
-                coords = np.array([a[2:][0] for a in c[c[:,0]==ch]])
-                coords -= coords.mean(axis=0) # mean-center the protomer coordinates
-                s = linalg.svdvals(coords) # singular values of the coordinates
-                aspect_ratios.append(s[1] / s[0])
-
-            score = 1. - np.mean(aspect_ratios) # average aspect ratio across all protomers of an oligomer
 
         scores.append(score)
 

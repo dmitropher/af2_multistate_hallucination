@@ -211,6 +211,12 @@ def get_args():
         action="store",
         help="enforce tmalign alignment with fasta file (default: %(default)s).",
     )
+    parser.add_argument(
+        "--silent",
+        default=False,
+        action="store_true",
+        help="output silent file instead of pdb",
+    )
 
     args = parser.parse_args()
 
