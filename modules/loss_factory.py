@@ -88,6 +88,15 @@ class Loss(object):
         return self.value
 
     def logistic_rescale(self, mid, max_val, steep, val=None):
+        """
+        rescale is of the form:
+
+        max_val/(1 + e**(-steep*(val-mid)))
+
+        max_val of 1 is generally correct for losses from 0-1
+        Steep > 0 will give 0 is better, steep < 0 will give 1 is better
+        Mid is where the loss should be 0.5, i.e. the midpoint
+        """
         if val is None:
             val = self.value
         return max_val / (1 + np.exp(-1 * steep * (val - mid)))
