@@ -9,6 +9,14 @@ from scoring import Score
 sys.path.append("/software/pyrosetta3.8/latest/")
 import pyrosetta
 
+import itertools, string
+
+
+def chain_generator():
+    for i in itertools.count(1):
+        for p in itertools.product(string.ascii_uppercase, repeat=i):
+            yield "".join(p)
+
 
 def seq_with_breaks_from_oligo(oligo):
     """
@@ -148,16 +156,18 @@ def oligo_to_pdb_file(
             + 1
         )  # identify idx of chain breaks based on resid jump.
         splits = np.append(splits, len(split_lines))
-        chains = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        chain_str = ""
+
+        chain_lists = []
         prev = 0
+        chain_iter = chain_generator()
         for ch, resid in enumerate(splits):  # make new chain string
             length = resid - prev
-            chain_str += chains[ch] * length
+            chain_name = next(chain_iter)
+            chain_lists.extend([chain_name] * length)
             prev = resid
         atom_lines = [l for l in pdb_lines if "ATOM" in l]
         new_lines = [
-            l[:21] + chain_str[k] + l[22:]
+            l[:21] + chain_lists[k] + l[22:]
             for k, l in enumerate(atom_lines)
             if "ATOM" in l
         ]  # generate chain-corrected PDB lines.
@@ -213,23 +223,25 @@ def oligo_to_silent(
         np.argwhere(np.diff(split_lines.T[5].astype(int)) > 1).flatten() + 1
     )  # identify idx of chain breaks based on resid jump.
     splits = np.append(splits, len(split_lines))
-    chains = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    chain_str = ""
+    # chains = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    chain_iter = chain_generator()
+    chain_lists = []
     prev = 0
     for ch, resid in enumerate(splits):  # make new chain string
         length = resid - prev
-        chain_str += chains[ch] * length
+        chain_name = next(chain_iter)
+        chain_lists.extend([chain_name] * length)
         prev = resid
     atom_lines = [l for l in pdb_lines if "ATOM" in l]
     new_lines = [
-        l[:21] + chain_str[k] + l[22:]
+        l[:21] + chain_lists[k] + l[22:]
         for k, l in enumerate(atom_lines)
         if "ATOM" in l
     ]  # generate chain-corrected PDB lines.
     pdb_string = "\n".join(new_lines)
     out_pose = pyrosetta.rosetta.core.pose.Pose()
-    pyrosetta.rosetta.core.import_pose.pose_from_pdbstring(out_pose,
-        pdb_string
+    pyrosetta.rosetta.core.import_pose.pose_from_pdbstring(
+        out_pose, pdb_string
     )
     silent_name = silent_out_path
     sfd_out = pyrosetta.rosetta.core.io.silent.SilentFileData(
@@ -244,6 +256,26 @@ def oligo_to_silent(
     struct.fill_struct(out_pose, name_no_suffix)
     sfd_out.add_structure(struct)
     sfd_out.write_all(silent_name, False)
+
+
+def oligo_to_file(
+    oligo, tag, step, out_basename, user_args, score_container=None
+):
+    if user_args.silent:
+        oligo_to_silent(
+            oligo,
+            tag,
+            step,
+            out_basename + ".silent",
+            user_args,
+            score_container,
+        )
+    else:
+        dirname = os.path.dirname(out_basename)
+        pdb_basename = os.path.basename(out_basename)
+        oligo_to_pdb_file(
+            oligo, step, dirname, pdb_basename, user_args, score_container=None
+        )
 
 
 def can_be_float(s):
