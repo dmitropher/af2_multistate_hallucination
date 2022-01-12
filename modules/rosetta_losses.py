@@ -157,17 +157,17 @@ class CyclicParamLoss(Loss):
         rescaled_list = []
         if "rota" in deltas_keys:
             rescaled_theta = self.logistic_rescale(
-                3, 1, 1.2, val=np.degrees(deltas_dict["rota"])
+                5, 1, 0.6, val=np.degrees(deltas_dict["rota"])
             )
             rescaled_list.append(rescaled_theta)
         if "rise" in deltas_keys:
             rescaled_rise = self.logistic_rescale(
-                1, 1, 5.5, val=deltas_dict["rise"]
+                2, 1, 1.5, val=deltas_dict["rise"]
             )
             rescaled_list.append(rescaled_rise)
         if "radi" in deltas_keys:
             rescaled_rise = self.logistic_rescale(
-                1, 1, 5.5, val=deltas_dict["radi"]
+                2, 1, 1.5, val=deltas_dict["radi"]
             )
             rescaled_list.append(rescaled_rise)
 
@@ -179,6 +179,11 @@ class CyclicParamLoss(Loss):
             "rise": self._params_dict["rise"],
             "rota": np.degrees(self._params_dict["rota"]),
             "radi": self._params_dict["radi"],
+        }
+        target_dict = {
+            "target_rise": self._helical_param_reference["rise"],
+            "target_rota": np.degrees(self._helical_param_reference["rota"]),
+            "target_radi": self._helical_param_reference["radi"],
         }
 
         all_dict = {**data_dict, **name_dict}
