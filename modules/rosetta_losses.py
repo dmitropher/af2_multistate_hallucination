@@ -186,7 +186,7 @@ class CyclicParamLoss(Loss):
             "target_radi": self._helical_param_reference["radi"],
         }
 
-        all_dict = {**data_dict, **name_dict}
+        all_dict = {**data_dict, **name_dict, **target_dict}
         return all_dict
 
 
