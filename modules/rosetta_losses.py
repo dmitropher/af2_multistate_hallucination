@@ -185,6 +185,8 @@ class CyclicParamLoss(Loss):
             val = self._helical_param_reference.get(key)
             if not (val is None):
                 new_key = f"target_{key}"
+                if key == "rota":
+                    val = np.degrees(val)
                 target_dict[new_key] = val
 
         all_dict = {**data_dict, **name_dict, **target_dict}
