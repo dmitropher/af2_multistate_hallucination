@@ -180,11 +180,12 @@ class CyclicParamLoss(Loss):
             "rota": np.degrees(self._params_dict["rota"]),
             "radi": self._params_dict["radi"],
         }
-        target_dict = {
-            "target_rise": self._helical_param_reference["rise"],
-            "target_rota": np.degrees(self._helical_param_reference["rota"]),
-            "target_radi": self._helical_param_reference["radi"],
-        }
+        target_dict = {}
+        for key in (["rise","rota","radi"]:
+            val = self._helical_param_reference.get(key)
+            if not (val is None):
+                new_key = f"target_{key}"
+                target_dict[new_key] = val
 
         all_dict = {**data_dict, **name_dict, **target_dict}
         return all_dict
