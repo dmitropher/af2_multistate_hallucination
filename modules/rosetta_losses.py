@@ -181,7 +181,7 @@ class CyclicParamLoss(Loss):
             "radi": self._params_dict["radi"],
         }
         target_dict = {}
-        for key in (["rise","rota","radi"]:
+        for key in (["rise","rota","radi"]):
             val = self._helical_param_reference.get(key)
             if not (val is None):
                 new_key = f"target_{key}"
