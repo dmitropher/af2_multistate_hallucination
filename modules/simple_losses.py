@@ -388,7 +388,14 @@ class fuzzyFracDSSPLoss(fracDSSPLoss):
         make_fuzzy = lambda val: val if val > 0.1 else 0
         self._fuzzy_delta_dssp = {
             ("fuzzy_delta_" + key): (
-                make_fuzzy(abs(actual[key] - self.desired_dssp[key]))
+                make_fuzzy(
+                    self.logistic_rescale(
+                        0.2,
+                        1,
+                        15,
+                        val=abs(actual[key] - self.desired_dssp[key]),
+                    )
+                )
             )
             for key in chosen_fracs
         }
