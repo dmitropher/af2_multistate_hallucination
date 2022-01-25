@@ -149,9 +149,20 @@ class CyclicParamLoss(Loss):
 
             if key in self._params_dict.keys():
 
-                delta_val = abs(
-                    self._params_dict[key] - self._helical_param_reference[key]
-                )
+                if key == "rota":
+                    raw_delta_val = (
+                        self._params_dict[key]
+                        - self._helical_param_reference[key]
+                    )
+                    wrapped_val = (raw_delta_val + np.pi) % (2 * np.pi) - np.pi
+                    delta_val = abs(wrapped_val)
+
+                else:
+                    delta_val = abs(
+                        self._params_dict[key]
+                        - self._helical_param_reference[key]
+                    )
+
                 deltas_dict[key] = delta_val
         deltas_keys = deltas_dict.keys()
         rescaled_list = []
@@ -181,7 +192,7 @@ class CyclicParamLoss(Loss):
             "radi": self._params_dict["radi"],
         }
         target_dict = {}
-        for key in (["rise","rota","radi"]):
+        for key in ["rise", "rota", "radi"]:
             val = self._helical_param_reference.get(key)
             if not (val is None):
                 new_key = f"target_{key}"
