@@ -251,8 +251,8 @@ class separationLoss(Loss):
     def __init__(self, oligo_obj=None, **user_kwargs):
 
         super().__init__(oligo_obj=oligo_obj, **user_kwargs)
-        self.value = self.compute()
         self.oligo_obj = oligo_obj
+        self.value = self.compute()
         self._information_string = f"""This loss object for: {self.loss_name}.
         A geometric term that forces a cyclic symmetry. A PDB is generated, and the distance between the center of mass of adjacent units computed.
         The standard deviation of these neighbour distances is the loss.
