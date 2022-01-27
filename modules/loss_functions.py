@@ -18,15 +18,13 @@ from file_io import default_dssp_dict
 ######################################################
 
 
-def get_coord(atom_type, oligo_object):
+def get_coord(atom_type, oligo_obj):
     """
     General function to get the coordinates of an atom type in a pdb. For geometric-based losses.
     Returns an array [chain, resid, x, y, z]
     """
     coordinates = []
-    pdb_lines = protein.to_pdb(oligo_object.try_unrelaxed_structure).split(
-        "\n"
-    )
+    pdb_lines = protein.to_pdb(oligo_obj.try_unrelaxed_structure).split("\n")
     for l in pdb_lines:  # parse PDB lines and extract atom coordinates
         if "ATOM" in l and atom_type in l:
             s = l.split()

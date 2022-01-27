@@ -271,8 +271,8 @@ class AspectRatioLoss(Loss):
     def __init__(self, oligo_obj=None, **user_kwargs):
 
         super().__init__(oligo_obj=oligo_obj, **user_kwargs)
+        self.oligo_obj = oligo_obj
         self.value = self.compute()
-        self.oligo = oligo_obj
         self._information_string = f"""This loss object for: {self.loss_name}. This loss adds a geometric term that forces an aspect ratio of 1 (spherical protomers) to prevent extended structures.
         At each step, the PDB is generated, and a singular value decomposition is performed on the coordinates of the CA atoms.
         The ratio of the two largest values is taken as the aspect ratio of the protomer.
@@ -281,7 +281,7 @@ class AspectRatioLoss(Loss):
 
     def compute(self):
         c = get_coord(
-            "CA", self.oligo
+            "CA", self.oligo_obj
         )  # get CA atoms, returns array [[chain, resid, x, y, z]]
         aspect_ratios = []
         chains = set(c[:, 0])
