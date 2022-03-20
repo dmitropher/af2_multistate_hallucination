@@ -469,7 +469,7 @@ class tmAlignLoss(Loss):
 
     def compute(self):
         self.value = tm_score(
-            self.oligo,
+            self.oligo_obj,
             self.template,
             self.template_alignment,
             temp_out=self.temp_out,
@@ -560,6 +560,7 @@ global_losses_dict = {
     "frac_dssp": fracDSSPLoss,
     "fuzzy_frac_dssp": fuzzyFracDSSPLoss,
     "aspect_ratio": AspectRatioLoss,
+    "tmalign": tmAlignLoss,
 }
 
 
