@@ -1,4 +1,5 @@
 import numpy as np
+from itertools import groupby
 
 from loss_factory import Loss, CombinedLoss, get_loss_creator
 from loss_functions import (
@@ -8,7 +9,10 @@ from loss_functions import (
     tm_score,
     dssp_wrapper,
     calculate_dssp_fractions,
+    dssp_diff,
+    get_coord,
 )
+from scipy import linalg
 from file_io import dummy_pdbfile
 
 
@@ -247,6 +251,7 @@ class separationLoss(Loss):
     def __init__(self, oligo_obj=None, **user_kwargs):
 
         super().__init__(oligo_obj=oligo_obj, **user_kwargs)
+        self.oligo_obj = oligo_obj
         self.value = self.compute()
         self._information_string = f"""This loss object for: {self.loss_name}.
         A geometric term that forces a cyclic symmetry. A PDB is generated, and the distance between the center of mass of adjacent units computed.
@@ -254,8 +259,47 @@ class separationLoss(Loss):
         Score is separation dist std: 0+ ,lower is better"""
 
     def compute(self):
-        self.value = get_separation_std(self.oligo)
+        self.value = get_separation_std(self.oligo_obj)
         return self.value
+
+
+class AspectRatioLoss(Loss):
+    """
+    Loss based on separation of units in the oligo (standard deviation)
+    """
+
+    def __init__(self, oligo_obj=None, **user_kwargs):
+
+        super().__init__(oligo_obj=oligo_obj, **user_kwargs)
+        self.oligo_obj = oligo_obj
+        self.value = self.compute()
+        self._information_string = f"""This loss object for: {self.loss_name}. This loss adds a geometric term that forces an aspect ratio of 1 (spherical protomers) to prevent extended structures.
+        At each step, the PDB is generated, and a singular value decomposition is performed on the coordinates of the CA atoms.
+        The ratio of the two largest values is taken as the aspect ratio of the protomer.
+        For oligomers, the aspect ratio is calculated for each protomer independently, and the average returned.
+        """
+
+    def compute(self):
+        c = get_coord(
+            "CA", self.oligo_obj
+        )  # get CA atoms, returns array [[chain, resid, x, y, z]]
+        aspect_ratios = []
+        chains = set(c[:, 0])
+        for ch in chains:
+            coords = np.array([a[2:][0] for a in c[c[:, 0] == ch]])
+            coords -= coords.mean(
+                axis=0
+            )  # mean-center the protomer coordinates
+            s = linalg.svdvals(coords)  # singular values of the coordinates
+            aspect_ratios.append(s[1] / s[0])
+
+        self.value = np.mean(
+            aspect_ratios
+        )  # average aspect ratio across all protomers of an oligomer
+        return self.value
+
+    def score(self):
+        return 1 - self.value
 
 
 class fracDSSPLoss(Loss):
@@ -298,11 +342,11 @@ class fracDSSPLoss(Loss):
         self.value = np.mean(list(self._delta_dssp.values()))
         return self.value
 
-    def logistic_rescale(self,):
-        mid = 0.25
-        max_val = 1
-        steep = 10
-        return max_val / (1 + np.exp(-1 * steep * (self.value - mid)))
+    # def logistic_rescale(self,):
+    #     mid = 0.25
+    #     max_val = 1
+    #     steep = 10
+    #     return max_val / (1 + np.exp(-1 * steep * (self.value - mid)))
 
     def get_base_values(self):
         name_dict = {self.loss_name: self.value}
@@ -311,7 +355,97 @@ class fracDSSPLoss(Loss):
 
     # TODO: allow logistical parameters to be rescaled from user_args
     def score(self):
-        return self.logistic_rescale()
+        return self.logistic_rescale(0.25, 1, 10)
+
+
+class fuzzyFracDSSPLoss(fracDSSPLoss):
+    """
+    Loss based on mean deviation from user specified fraction dssp
+    """
+
+    def __init__(self, oligo_obj=None, **user_kwargs):
+        super().__init__(oligo_obj=oligo_obj, **user_kwargs)
+
+        self._information_string = f"""This loss object for: {self.loss_name}.
+        This loss computes the deviation from the desired fraction dssp
+        Value is the mean deviation from desired fraction dssp.
+        The delta values for this version of the loss are overriden when they approach 0
+        get_base_values is overwridden to provide raw dssp deviation for each type
+        Score is a logistically reweighted value from 0-1, lower is better"""
+
+    def compute(self):
+        dummy = dummy_pdbfile(self.oligo)
+        dummy_path = dummy.name
+        frac_beta, frac_alpha, frac_other = calculate_dssp_fractions(
+            dssp_wrapper(dummy_path)
+        )
+        dummy.close()
+        actual = {"E": frac_beta, "H": frac_alpha, "O": frac_other}
+        chosen_fracs = self.desired_dssp.keys()
+        self._delta_dssp = {
+            ("delta_" + key): (abs(actual[key] - self.desired_dssp[key]))
+            for key in chosen_fracs
+        }
+        make_fuzzy = lambda val: val if val > 0.1 else 0
+        self._fuzzy_delta_dssp = {
+            ("fuzzy_delta_" + key): (
+                make_fuzzy(
+                    self.logistic_rescale(
+                        0.2,
+                        1,
+                        15,
+                        val=abs(actual[key] - self.desired_dssp[key]),
+                    )
+                )
+            )
+            for key in chosen_fracs
+        }
+        self.value = np.mean(list(self._fuzzy_delta_dssp.values()))
+        return self.value
+
+
+class dsspFoldProxyLoss(Loss):
+    """
+    Loss based on mean deviation from user specified fraction dssp
+    """
+
+    def __init__(self, oligo_obj=None, **user_kwargs):
+
+        super().__init__(oligo_obj=oligo_obj, **user_kwargs)
+        dssp_target_pattern = user_kwargs["loss_params"]
+        self.oligo = oligo_obj
+        self._target_dssp_fold_string = dssp_target_pattern
+        self.value = self.compute()
+        self._information_string = f"""This loss object for: {self.loss_name}.
+        This loss computes the deviation from the desired pattern of dssp
+        Value is the current dssp pattern. Deviation is computed by BioPython
+        dynamic programming global alignment with gaps
+        Score is reweighted value from 0-1, lower is better"""
+
+    def compute(self):
+        dummy = dummy_pdbfile(self.oligo)
+        dummy_path = dummy.name
+        dssp_string = "".join(dssp_wrapper(dummy_path))
+        dummy.close()
+        foldssp = "".join(["".join(x for x, y in groupby(dssp_string))])
+        self._current_dssp_fold_string = foldssp
+        align, max = dssp_diff(
+            self._target_dssp_fold_string, self._current_dssp_fold_string
+        )
+        self.value = align / max
+        return self.value
+
+    def get_base_values(self):
+        all_dict = {
+            self.loss_name: self.value,
+            "target_dssp_pattern": self._target_dssp_fold_string,
+            "current_dssp_pattern": self._current_dssp_fold_string,
+        }
+        return all_dict
+
+    # TODO: allow logistical parameters to be rescaled from user_args
+    def score(self):
+        return 1 - self.logistic_rescale(0.25, 1, 10)
 
 
 # TODO change this to a logisically mapped rescale, with some TMAlign midpoint around 2 or something
@@ -335,7 +469,7 @@ class tmAlignLoss(Loss):
 
     def compute(self):
         self.value = tm_score(
-            self.oligo,
+            self.oligo_obj,
             self.template,
             self.template_alignment,
             temp_out=self.temp_out,
@@ -423,6 +557,10 @@ global_losses_dict = {
     "dual_cyclic": dualCyclicLoss,
     "separation": separationLoss,
     "max_dssp_ptm_lddt": maxDSSPptmlDDT,
+    "frac_dssp": fracDSSPLoss,
+    "fuzzy_frac_dssp": fuzzyFracDSSPLoss,
+    "aspect_ratio": AspectRatioLoss,
+    "tmalign": tmAlignLoss,
 }
 
 

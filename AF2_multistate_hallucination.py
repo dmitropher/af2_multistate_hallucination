@@ -32,7 +32,9 @@ from file_io import default_aa_freq
 
 from af2_multistate_util import (
     write_to_score_file,
-    oligo_to_pdb_file,
+    # oligo_to_pdb_file,
+    # oligo_to_silent,
+    oligo_to_file,
     add_default_scores,
     add_default_oligo_scores,
 )
@@ -209,7 +211,10 @@ for name, oligo in oligomers.items():
 
     # Pull default scores for this oligo name
     add_default_oligo_scores(initial_score_container, name, oligo)
-    oligo_to_pdb_file(oligo, 0, out_dir, out_basename, args)
+    # oligo_to_pdb_file(oligo, 0, out_dir, out_basename, args)
+    oligo_to_file(
+        oligo, out_basename, 0, f"{out_dir}/{out_basename}_{oligo.name}", args
+    )
     current_loss = loss if loss < current_loss else current_loss
 add_default_scores(
     initial_score_container,
@@ -388,12 +393,18 @@ for i in range(1, args.steps):
             )
             print("-" * 70)
 
-    # Save PDB if move was accepted.
     if accepted == True:
 
         for name, oligo in oligomers.items():
 
-            oligo_to_pdb_file(oligo, i, out_dir, out_basename, args)
+            # oligo_to_pdb_file(oligo, i, out_dir, out_basename, args)
+            oligo_to_file(
+                oligo,
+                out_basename,
+                i,
+                f"{out_dir}/{out_basename}_{oligo.name}",
+                args,
+            )
 
             # Optionally save the PAE matrix
             if args.output_pae == True:

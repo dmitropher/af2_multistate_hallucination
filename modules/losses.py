@@ -1,9 +1,19 @@
 # losses module
 
 import numpy as np
+import sys
+
+sys.path.append("/projects/ml/alphafold/alphafold_git/")
+from alphafold.common import protein
+
+# dssp loss imports
+from Bio.PDB.DSSP import DSSP
+from Bio.PDB.DSSP import dssp_dict_from_pdb_file
+
+# to run tmalign
+import subprocess
 
 # import sys
-
 
 from scoring import scores_from_loss
 
@@ -28,13 +38,14 @@ def compute_loss(loss_names, oligo, args, loss_weights, score_container=None):
     # intialize scores
     scores = []
     # iterate over all losses
-    args_dict = vars(args)
+    # args_dict = vars(args)
 
     main_creator = get_creator_from_dicts(
         get_simple_loss_dict(), get_rosetta_loss_dict()
     )
 
     for loss_idx, current_loss in enumerate(loss_names):
+        args_dict = vars(args)
         loss_type, loss_params = current_loss
         args_dict["loss_params"] = loss_params
         loss_obj = main_creator.get_loss(
@@ -47,11 +58,18 @@ def compute_loss(loss_names, oligo, args, loss_weights, score_container=None):
         if score_container is not None:
             score_container.add_scores(*scores_from_loss(loss_obj))
 
+        print(f"loss_type: {loss_type}")
+        print(f"scores: {scores}")
+        if score_container is not None:
+            score_container.add_scores(*scores_from_loss(loss_obj))
+
     # Normalize loss weights vector.
     loss_weights_normalized = np.array(loss_weights) / np.sum(loss_weights)
+    print(f"loss_weights_normalized: {loss_weights_normalized}")
 
     # Total loss for this oligomer is the average of its weighted scores.
-    final_score = np.mean(np.array(scores) * loss_weights_normalized)
+    final_score = np.sum(np.array(scores) * loss_weights_normalized)
+    print(f"final_score: {final_score}")
 
     # The loss counts positively or negatively to the overall loss depending on whether this oligomer is positively or negatively designed.
     if oligo.positive_design == True:

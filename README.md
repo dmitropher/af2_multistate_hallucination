@@ -27,9 +27,10 @@ Summary
   - `cyclic`: new trial loss to enforce symmetry based on pae sub-matrix sampling. Not sure it is working. Needs to be benchmarked.
   - `dual_cyclic`: dual with an added geometric loss term to enforce symmetry. Seems to work well.
   - `dual_dssp`: jointly optimises ptm and plddt (equal weights) as well as enforcing a specific secondary structure content as computed by DSSP on the structure.
-  - `tmalign`: loss defined as TM-score to template PDB.
-  - `dual_tmalgin`: jointly optimises ptm, plddt and TM-score.
-  - `pae_asym_tmalign`: in development. 
+  - `tmalign`: loss defined as TM-score to template PDB, given with `--template` , alignment of template (`tmalign -I`) can be forced with `--template_alignment [alignment].aln` if template has multiple chains remove the `TER` in the pdbfiles.
+  - `dual_tmalign`: jointly optimises ptm, plddt and tmalign (see above) TM-score.
+  - `pae_asym_tmalign`: in development.
+  - `aspect_ratio`: geometric term that enforces protomers with aspect ratios close to 1 (i.e. spherical).  
 
 Minimal inputs
 --------------
@@ -55,6 +56,23 @@ QEELAELIELILEVNEWLQRWEEEGLKDSEELVKEYEKIVEKIKELVKMAEEGHDEEEAEEEAKKLKKKAEEILREAEKG
 1,1,1,0,0,1,0,0,1,0,0,0,1,0,0,1,0,0,0,1,0,0,1,1,1,0,1,1,0,1,1,0,0,1,1,0,1,1,0,0,1,0,0,1,1,0,0,1,0,0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,0,1,1,1,0,1,1,0,1,1,1,0,1,1,0
 ```
 
+Example template alignment for tmalign loss
+-------------------------------------------
+Remove the `TER` in the template pdbfiles.
+model1 (do not change the names) ist the template given in `--template` 
+model2 should be the length of the protomer to be designed (sequence given here is irrelevant)
+e.g. for a desing of length 130 with motifs placed at N- and C-termini
+Do not change this order!
+```
+>model1
+RSMSWDNEVAFN-----------------------------------------------------
+----------------------------------------------------QHHLGGAKQAGAV
+
+>model2
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+```
+
 Outputs
 -------
 - PDB structures for each accepted move of the MCMC trajectory.
@@ -63,5 +81,4 @@ Outputs
 To-do
 -----
 - A CCE-based loss to enable constrained hallucination based on an input structure?
-- Check AA frequencies.
 - Check if normalising pae and pae-derived losses by their init value is an appropriate scaling method?

@@ -93,11 +93,11 @@ def get_args():
         "--loss",
         default="dual",
         type=str,
-        help="the loss function used during optimization. Choose from \
-            [plddt, ptm, pae, dual, pae_sub_mat, pae_asym, entropy [not working yet], dual_cyclic, dual_dssp [no working yet], tmalign (requires a --template), dual_tmalign (requires a --template), pae_asym_tmalign [not working yet]].\
+        help='the loss function used during optimization. Choose from \
+            [plddt, ptm, pae, dual, pae_sub_mat, pae_asym, entropy [not working yet], dual_cyclic, dual_dssp [no working yet], tmalign (requires a --template), dual_tmalign (requires a --template), pae_asym_tmalign [not working yet], aspect_ratio].\
             Multiple losses can be combined as a comma-separarted string of loss_name:args units (and weighed with --loss_weights).\
             loss_0_name::loss0_param0;loss0_param1,loss_1_name::[loss_1_configfile.conf] ... \
-             (default: %(default)s).",
+             (default: %(default)s).",',
     )
 
     parser.add_argument(
@@ -210,6 +210,12 @@ def get_args():
         type=str,
         action="store",
         help="enforce tmalign alignment with fasta file (default: %(default)s).",
+    )
+    parser.add_argument(
+        "--silent",
+        default=False,
+        action="store_true",
+        help="output silent file instead of pdb",
     )
 
     args = parser.parse_args()
