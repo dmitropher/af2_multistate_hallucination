@@ -458,6 +458,7 @@ class tmAlignLoss(Loss):
     def __init__(self, oligo_obj=None, **user_kwargs):
 
         super().__init__(oligo_obj=oligo_obj, **user_kwargs)
+        self.oligo_obj = oligo_obj
         self.value = self.compute()
         self.template = user_kwargs["template"]
         self.template_alignment = user_kwargs["template_alignment"]
